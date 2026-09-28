@@ -198,252 +198,255 @@
     }
     button:active { background:rgba(0,255,65,0.2); }
 
-    @media print {
-      body { display:none !important; }
+    /* 密钥弹窗样式 */
+    #roomkey-input{
+      background:#000;
+      border:1px solid #00ff4166;
+      color:#00ff41;
+      padding:10px;
+      border-radius:8px;
+      font-size:16px;
+      width:240px;
+      outline:none;
+      margin-bottom:15px;
+    }
+    #roomkey-input:focus{
+      border-color:#00ff41;
+    }
+    #roomkey-tip{
+      color:#ff4444;
+      font-size:12px;
+      margin-top:10px;
+      display:none;
     }
   </style>
 </head>
 <body>
 <div id="room-modal">
-  <div style="padding:20px;text-align:center;">
-    <div style="color:#00ff41;font-size:16px;margin-bottom:15px;">输入房间密钥</div>
-    <input id="roomkey-input" type="text" placeholder="密钥，相同密钥进入同一聊天室" style="background:#000;border:1px solid #00ff4166;color:#00ff41;padding:8px 12px;border-radius:8px;outline:none;font-family:inherit;">
-    <br><br>
+  <div style="text-align:center;">
+    <div style="color:#00ff41;font-size:16px;margin-bottom:12px;">输入房间密钥</div>
+    <input id="roomkey-input" type="text" placeholder="输入密钥">
+    <br>
     <button onclick="enterRoom()">确认进入</button>
-    <div id="roomkey-tip" style="color:#ff4444;font-size:12px;margin-top:10px;display:none;">房间已满（最多2人）</div>
+    <div id="roomkey-tip">房间已满</div>
   </div>
 </div>
 
-  <div id="full-modal">
-    <div class="full-text">房间占用<br/>当前最多2人同时在线</div>
-  </div>
+<div id="full-modal">
+  <div class="full-text">房间占用<br/>当前最多2人同时在线</div>
+</div>
 
-  <div class="header">
-    <div>黑盒信道</div>
-    <div class="tip">端到端加密 · 双人即毁</div>
-    <div class="status" id="connect-status">连接已断开</div>
-  </div>
+<div class="header">
+  <div>黑盒信道</div>
+  <div class="tip">端到端加密 · 双人房间</div>
+  <div class="status" id="connect-status">连接已断开</div>
+</div>
 
-  <div class="typing-tip" id="typing-tip"></div>
-  <div id="chat-box"></div>
+<div class="typing-tip" id="typing-tip"></div>
+<div id="chat-box"></div>
 
-  <div id="input-area">
-    <input type="text" id="msg-input" placeholder="输入消息..." maxlength="200" />
-    <button onclick="sendMessage()">发送</button>
-  </div>
+<div id="input-area">
+  <input type="text" id="msg-input" placeholder="输入消息..." maxlength="200" onkeydown="if(event.key==='Enter')sendMessage()">
+  <button onclick="sendMessage()">发送</button>
+</div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    const chatBox = document.getElementById('chat-box');
-    const input = document.getElementById('msg-input');
-    const connectStatus = document.getElementById('connect-status');
-    const typingTip = document.getElementById('typing-tip');
-    const fullModal = document.getElementById('full-modal');
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const chatBox = document.getElementById('chat-box');
+const input = document.getElementById('msg-input');
+const connectStatus = document.getElementById('connect-status');
+const typingTip = document.getElementById('typing-tip');
+const roomModal = document.getElementById('room-modal');
+const roomkeyTip = document.getElementById('roomkey-tip');
 
-    let roomKey = "";
-    let enteredRoom = false;
-    const ENCRYPT_SECRET = "default_room_001";
+let roomKey = "";
+let enteredRoom = false;
+const ENCRYPT_SECRET = "default_room_secret";
 
-    const me = 'u_' + Math.floor(Math.random() * 100000);
-    let destroyed = false;
-    let typingTimer = null;
+const me = 'u_' + Math.floor(Math.random()*1000000);
+let destroyed = true;
+let typingTimer = null;
 
-    document.addEventListener('contextmenu', e=>e.preventDefault());
-    document.addEventListener('copy',e=>e.preventDefault());
-    document.addEventListener('selectstart',e=>e.preventDefault());
-    window.addEventListener('blur', ()=>{
-      if(!destroyed) chatBox.classList.add('blur');
-    });
-    window.addEventListener('focus', ()=>{
-      chatBox.classList.remove('blur');
-    });
+document.addEventListener('contextmenu', e=>e.preventDefault());
+document.addEventListener('copy',e=>e.preventDefault());
+document.addEventListener('selectstart',e=>e.preventDefault());
+window.addEventListener('blur', ()=>{
+  if(!destroyed) chatBox.classList.add('blur');
+});
+window.addEventListener('focus', ()=>{
+  chatBox.classList.remove('blur');
+});
 
-    function enterRoom(){
-      const val = document.getElementById('roomkey-input').value.trim();
-      if(!val) return;
-      roomKey = val;
-      enteredRoom = true;
-      socket.emit('auto_join', roomKey);
-    }
+function enterRoom(){
+  const val = document.getElementById('roomkey-input').value.trim();
+  if(!val) return;
+  roomKey = val;
+  enteredRoom = true;
+  socket.emit('auto_join', roomKey);
+  //关闭密钥弹窗，进入房间界面
+  roomModal.style.display = 'none';
+  destroyed = true;
+  chatBox.innerHTML = '';
+  const tip = document.createElement('div');
+  tip.className = 'destroy-tip';
+  tip.textContent = '✅ 房间已创建，等待其他人使用相同密钥接入';
+  chatBox.appendChild(tip);
+  input.disabled = true;
+  input.placeholder = '等待对方上线...';
+}
 
-    document.getElementById('roomkey-input').addEventListener('keydown',e=>{
-      if(e.key === 'Enter'){
-        e.preventDefault();
-        enterRoom();
-      }
-    })
+socket.on('disconnect', () => {
+  if(!destroyed){
+    connectStatus.style.display = 'block';
+  }
+  hideTyping();
+});
 
-    socket.on('disconnect', () => {
-      if(!destroyed){
-        connectStatus.style.display = 'block';
-      }
-      hideTyping();
-    });
+socket.on('connect', () => {
+  connectStatus.style.display = 'none';
+  if(enteredRoom){
+    socket.emit('auto_join', roomKey);
+  }
+});
 
-    socket.on('connect', () => {
-      connectStatus.style.display = 'none';
-      if(enteredRoom){
-        socket.emit('auto_join', roomKey);
-      }
-    });
+socket.on('room_full', () => {
+  roomkeyTip.style.display = 'block';
+  setTimeout(()=>{roomkeyTip.style.display='none'},2500);
+});
 
-    socket.on('room_full', () => {
-      document.getElementById('roomkey-tip').style.display='block';
-      fullModal.style.display = 'flex';
-    });
+socket.on('room_destroy', () => {
+  destroyed = true;
+  if(typingTimer) clearTimeout(typingTimer);
+  hideTyping();
+  chatBox.innerHTML = '';
+  const tip = document.createElement('div');
+  tip.className = 'destroy-tip';
+  tip.textContent = '— 对方已退出，记录已销毁 —';
+  chatBox.appendChild(tip);
+  input.disabled = true;
+  input.value = '';
+  input.placeholder = '等待对方上线...';
+});
 
-    socket.on('wait_peer',()=>{
-      destroyed = true;
-      document.getElementById('room-modal').style.display = 'none';
-      chatBox.innerHTML = '';
-      const tip = document.createElement('div');
-      tip.className = 'destroy-tip';
-      tip.textContent = '✅ 房间已创建，正在等待对方输入相同密钥接入...';
-      chatBox.appendChild(tip);
-      input.disabled = true;
-      input.placeholder = '等待对方上线...';
-    })
+socket.on('peer_online', () => {
+  destroyed = false;
+  chatBox.innerHTML = '';
+  const tip = document.createElement('div');
+  tip.className = 'rebuild-tip';
+  tip.textContent = '对方接入成功，信道已建立';
+  chatBox.appendChild(tip);
+  input.disabled = false;
+  input.placeholder = '输入消息...';
+});
 
-    socket.on('room_destroy', () => {
-      destroyed = true;
-      if(typingTimer) clearTimeout(typingTimer);
-      hideTyping();
-      chatBox.innerHTML = '';
-      const tip = document.createElement('div');
-      tip.className = 'destroy-tip';
-      tip.textContent = '— 对方已退出，记录已销毁 —';
-      chatBox.appendChild(tip);
-      input.disabled = true;
-      input.value = '';
-      input.placeholder = '等待对方上线...';
-    });
+socket.on('message_read', (msgId) => {
+  const mark = document.querySelector(`[data-msgid="${msgId}"] .read-mark`);
+  if(mark) mark.textContent = '已读';
+});
 
-    socket.on('peer_online', () => {
-      destroyed = false;
-      chatBox.innerHTML = '';
-      const tip = document.createElement('div');
-      tip.className = 'rebuild-tip';
-      tip.textContent = '对方接入成功，信道已建立';
-      chatBox.appendChild(tip);
-      input.disabled = false;
-      input.placeholder = '输入消息...';
-    });
+socket.on('receive_message', async (data) => {
+  if(destroyed) return;
+  const txt = await decrypt(data.encrypted, ENCRYPT_SECRET);
+  addMessage(txt, false, data.msgId, true);
+});
 
-    socket.on('message_read', (msgId) => {
-      const mark = document.querySelector(`[data-msgid="${msgId}"] .read-mark`);
-      if(mark) mark.textContent = '已读';
-    });
+socket.on('user_typing', () => {
+  if(destroyed) return;
+  showTyping();
+});
+socket.on('user_stop_typing', () => {
+  hideTyping();
+});
 
-    socket.on('receive_message', async (data) => {
-      if(destroyed) return;
-      const txt = await decrypt(data.encrypted, ENCRYPT_SECRET);
-      addMessage(txt, data.sender === me, data.msgId, true);
-    });
+input.addEventListener('input', ()=>{
+  if(destroyed) return;
+  socket.emit('typing', {room:roomKey, sender:me});
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(()=>{
+    socket.emit('stop_typing', {room:roomKey, sender:me});
+  },1000);
+});
 
-    socket.on('user_typing', () => {
-      if(destroyed) return;
-      showTyping();
-    });
-    socket.on('user_stop_typing', () => {
-      hideTyping();
-    });
+async function sendMessage() {
+  const text = input.value.trim();
+  if(!text || input.disabled) return;
+  const msgId = Date.now() + '_' + Math.floor(Math.random()*1000000);
+  clearTimeout(typingTimer);
+  socket.emit('stop_typing', {room:roomKey, sender:me});
 
-    input.addEventListener('input', ()=>{
-      if(destroyed) return;
-      socket.emit('typing', {room:roomKey, sender:me});
-      clearTimeout(typingTimer);
-      typingTimer = setTimeout(()=>{
-        socket.emit('stop_typing', {room:roomKey, sender:me});
-      },1000);
-    });
+  if(!socket.connected){
+    addMessage(text, true, msgId, true, true);
+    input.value = '';
+    return;
+  }
+  const enc = await encrypt(text, ENCRYPT_SECRET);
+  socket.emit('send_message', {
+    room:roomKey,
+    msgId:msgId,
+    sender:me,
+    encrypted:enc
+  });
+  addMessage(text, true, msgId, false);
+  input.value = '';
+  scrollBottom();
+}
 
-    async function sendMessage() {
-      const text = input.value.trim();
-      if(!text || input.disabled) return;
-      const msgId = Date.now() + '_' + Math.floor(Math.random()*10000);
-      clearTimeout(typingTimer);
-      socket.emit('stop_typing', {room:roomKey, sender:me});
+function addMessage(text, isMe, msgId, scroll=true, fail=false) {
+  const row = document.createElement('div');
+  row.className = 'row ' + (isMe ? 'right':'left');
+  row.setAttribute('data-msgid',msgId);
+  const wrap = document.createElement('div');
+  wrap.className = 'bubble-wrap';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble' + (fail ? ' fail':'');
+  bubble.textContent = text;
+  const mark = document.createElement('div');
+  mark.className = fail ? 'fail-mark' : 'read-mark';
+  mark.textContent = fail ? '发送失败' : '';
+  wrap.appendChild(bubble);
+  wrap.appendChild(mark);
+  row.appendChild(wrap);
+  chatBox.appendChild(row);
+  if(scroll) scrollBottom();
+}
+function scrollBottom(){
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+function showTyping(){
+  typingTip.textContent = '对方正在输入...';
+  typingTip.classList.add('show');
+}
+function hideTyping(){
+  typingTip.classList.remove('show');
+}
 
-      if(!socket.connected){
-        addMessage(text, true, msgId, true, true);
-        input.value = '';
-        return;
-      }
-      const enc = await encrypt(text, ENCRYPT_SECRET);
-      socket.emit('send_message', {
-        room:roomKey,
-        msgId:msgId,
-        sender:me,
-        encrypted:enc
-      });
-      addMessage(text, true, msgId, false);
-      input.value = '';
-      scrollBottom();
-    }
-
-    function addMessage(text, isMe, msgId, scroll=true, fail=false) {
-      const row = document.createElement('div');
-      row.className = 'row ' + (isMe ? 'right':'left');
-      row.setAttribute('data-msgid',msgId);
-      const wrap = document.createElement('div');
-      wrap.className = 'bubble-wrap';
-      const bubble = document.createElement('div');
-      bubble.className = 'bubble' + (fail ? ' fail':'');
-      bubble.textContent = text;
-      const mark = document.createElement('div');
-      mark.className = fail ? 'fail-mark' : 'read-mark';
-      mark.textContent = fail ? '发送失败' : '';
-      wrap.appendChild(bubble);
-      wrap.appendChild(mark);
-      row.appendChild(wrap);
-      chatBox.appendChild(row);
-      if(scroll) scrollBottom();
-    }
-    function scrollBottom(){
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-    function showTyping(){
-      typingTip.textContent = '对方正在输入...';
-      typingTip.classList.add('show');
-    }
-    function hideTyping(){
-      typingTip.classList.remove('show');
-    }
-
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    async function getKey(secret){
-      const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(secret));
-      return crypto.subtle.importKey('raw', hashBuf, {name:'AES-CBC'}, false, ['encrypt','decrypt']);
-    }
-    async function encrypt(text, secret){
-      const key = await getKey(secret);
-      const iv = crypto.getRandomValues(new Uint8Array(16));
-      const encBuf = await crypto.subtle.encrypt({name:'AES-CBC', iv}, key, encoder.encode(text));
-      return {
-        iv: btoa(String.fromCharCode(...iv)),
-        data: btoa(String.fromCharCode(...new Uint8Array(encBuf)))
-      };
-    }
-    async function decrypt(obj, secret){
-      try{
-        const key = await getKey(secret);
-        const iv = Uint8Array.from(atob(obj.iv), c=>c.charCodeAt(0));
-        const data = Uint8Array.from(atob(obj.data), c=>c.charCodeAt(0));
-        const plainBuf = await crypto.subtle.decrypt({name:'AES-CBC', iv}, key, data);
-        return decoder.decode(plainBuf);
-      }catch(e){
-        return '[解密失败]';
-      }
-    }
-
-    input.addEventListener('keydown', e=>{
-      if(e.key === 'Enter'){
-        e.preventDefault();
-        sendMessage();
-      }
-    })
-  </script>
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+async function getKey(secret){
+  const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(secret));
+  return crypto.subtle.importKey('raw', hashBuf, {name:'AES-CBC'}, false, ['encrypt','decrypt']);
+}
+async function encrypt(text, secret){
+  const key = await getKey(secret);
+  const iv = crypto.getRandomValues(new Uint8Array(16));
+  const encBuf = await crypto.subtle.encrypt({name:'AES-CBC', iv}, key, encoder.encode(text));
+  return {
+    iv: btoa(String.fromCharCode(...iv)),
+    data: btoa(String.fromCharCode(...new Uint8Array(encBuf)))
+  };
+}
+async function decrypt(obj, secret){
+  try{
+    const key = await getKey(secret);
+    const iv = Uint8Array.from(atob(obj.iv), c=>c.charCodeAt(0));
+    const data = Uint8Array.from(atob(obj.data), c=>c.charCodeAt(0));
+    const plainBuf = await crypto.subtle.decrypt({name:'AES-CBC', iv}, key, data);
+    return decoder.decode(plainBuf);
+  }catch(e){
+    return '[解密失败]';
+  }
+}
+</script>
 </body>
 </html>
