@@ -262,6 +262,7 @@ const roomkeyTip = document.getElementById('roomkey-tip');
 
 let roomKey = "";
 let enteredRoom = false;
+let joining = false; // 防重复加入锁【新增】
 const ENCRYPT_SECRET = "default_room_secret";
 
 const me = 'u_' + Math.floor(Math.random()*1000000);
@@ -280,11 +281,11 @@ window.addEventListener('focus', ()=>{
 
 function enterRoom(){
   const val = document.getElementById('roomkey-input').value.trim();
-  if(!val) return;
+  if(!val || joining) return;
   roomKey = val;
   enteredRoom = true;
+  joining = true; //上锁，防止连续点多次确认
   socket.emit('auto_join', roomKey);
-  //关闭密钥弹窗，进入房间界面
   roomModal.style.display = 'none';
   destroyed = true;
   chatBox.innerHTML = '';
@@ -294,6 +295,7 @@ function enterRoom(){
   chatBox.appendChild(tip);
   input.disabled = true;
   input.placeholder = '等待对方上线...';
+  setTimeout(()=>{joining=false;}, 800);
 }
 
 socket.on('disconnect', () => {
@@ -305,7 +307,7 @@ socket.on('disconnect', () => {
 
 socket.on('connect', () => {
   connectStatus.style.display = 'none';
-  if(enteredRoom){
+  if(enteredRoom && roomKey){
     socket.emit('auto_join', roomKey);
   }
 });
@@ -313,6 +315,9 @@ socket.on('connect', () => {
 socket.on('room_full', () => {
   roomkeyTip.style.display = 'block';
   setTimeout(()=>{roomkeyTip.style.display='none'},2500);
+  //房间满了，弹窗回来
+  roomModal.style.display = 'flex';
+  enteredRoom = false;
 });
 
 socket.on('room_destroy', () => {
