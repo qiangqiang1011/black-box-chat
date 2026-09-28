@@ -6,22 +6,17 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-// 静态文件托管，public目录
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 8个房间，每个最多2人
+// 8个房间，每间最多2人
 const rooms = new Map();
 for(let i=1;i<=8;i++){
   rooms.set(i, { count:0, clients:[] });
 }
 
-// 广播全部房间状态
 function broadcastRoomStatus(){
   const arr = [];
   for(let i=1;i<=8;i++){
@@ -36,7 +31,6 @@ io.on('connection', (socket) => {
   socket.currentRoom = null;
   broadcastRoomStatus();
 
-  // 加入房间
   socket.on('join', (roomNum)=>{
     const room = rooms.get(roomNum);
     if(!room) return;
@@ -44,8 +38,6 @@ io.on('connection', (socket) => {
       socket.emit('tip','房间已满，请选择其他房间');
       return;
     }
-
-    // 退出之前房间
     if(socket.currentRoom !== null){
       const old = rooms.get(socket.currentRoom);
       if(old){
@@ -53,7 +45,6 @@ io.on('connection', (socket) => {
         old.count = old.clients.length;
       }
     }
-
     socket.currentRoom = roomNum;
     socket.join(`room_${roomNum}`);
     room.clients.push(socket.id);
@@ -67,21 +58,18 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 密钥交换透传
   socket.on('key_exchange', (payload)=>{
     const r = socket.currentRoom;
     if(!r) return;
     socket.to(`room_${r}`).emit('key_exchange', payload);
   });
 
-  // 密文转发
   socket.on('send_cipher', (cipher)=>{
     const r = socket.currentRoom;
     if(!r) return;
     socket.to(`room_${r}`).emit('recv_cipher', cipher);
   });
 
-  // 用户断线
   socket.on('disconnect', ()=>{
     const r = socket.currentRoom;
     if(r === null) return;
@@ -94,8 +82,8 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = 3000;
-// EKS容器必须监听0.0.0.0
+// 监听80端口，0.0.0.0确保外网可访问
+const PORT = 80;
 server.listen(PORT, '0.0.0.0', ()=>{
   console.log(`服务启动，监听端口 ${PORT}`);
 });
