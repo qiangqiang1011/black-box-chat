@@ -17,6 +17,7 @@ for(let i=1;i<=8;i++){
   rooms.set(i, { count:0, clients:[] });
 }
 
+// 全局广播房间状态
 function broadcastRoomStatus(){
   const arr = [];
   for(let i=1;i<=8;i++){
@@ -29,15 +30,36 @@ function broadcastRoomStatus(){
 io.on('connection', (socket) => {
   console.log('客户端连接', socket.id);
   socket.currentRoom = null;
+  // 新连接同步房间状态
   broadcastRoomStatus();
 
+  // 主动退出房间
+  socket.on('leave_room', ()=>{
+    const r = socket.currentRoom;
+    if(r === null) return;
+    const room = rooms.get(r);
+    if(!room) return;
+
+    // 移除当前用户
+    room.clients = room.clients.filter(c=>c!==socket.id);
+    room.count = room.clients.length;
+    // 通知房间内对方：用户已退出
+    socket.to(`room_${r}`).emit('partner_leave');
+    socket.leave(`room_${r}`);
+    socket.currentRoom = null;
+    // 全局更新房间状态
+    broadcastRoomStatus();
+  });
+
+  // 进入房间
   socket.on('join', (roomNum)=>{
     const room = rooms.get(roomNum);
     if(!room) return;
     if(room.count >=2){
-      socket.emit('tip','房间已满，请选择其他房间');
+      socket.emit('tip','房间已满');
       return;
     }
+    // 若之前在其他房间，先退出旧房间
     if(socket.currentRoom !== null){
       const old = rooms.get(socket.currentRoom);
       if(old){
@@ -49,6 +71,7 @@ io.on('connection', (socket) => {
     socket.join(`room_${roomNum}`);
     room.clients.push(socket.id);
     room.count = room.clients.length;
+    // 全局更新房间状态
     broadcastRoomStatus();
 
     if(room.count ===1){
@@ -70,6 +93,7 @@ io.on('connection', (socket) => {
     socket.to(`room_${r}`).emit('recv_cipher', cipher);
   });
 
+  // 断线处理
   socket.on('disconnect', ()=>{
     const r = socket.currentRoom;
     if(r === null) return;
@@ -78,12 +102,12 @@ io.on('connection', (socket) => {
     room.clients = room.clients.filter(c=>c!==socket.id);
     room.count = room.clients.length;
     socket.to(`room_${r}`).emit('partner_leave');
+    // 全局更新房间状态
     broadcastRoomStatus();
   });
 });
 
-// 监听80端口，0.0.0.0确保外网可访问
-const PORT = 80;
+const PORT = 3000;
 server.listen(PORT, '0.0.0.0', ()=>{
-  console.log(`服务启动，监听端口 ${PORT}`);
+  console.log(`服务启动，端口 ${PORT}`);
 });
