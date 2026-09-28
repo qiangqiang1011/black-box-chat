@@ -262,32 +262,23 @@ const roomkeyTip = document.getElementById('roomkey-tip');
 
 let roomKey = "";
 let enteredRoom = false;
-let joining = false; // 防重复加入锁【新增】
-const ENCRYPT_SECRET = "default_room_secret";
+let joining = false;
+let isInRoom = false;
 
-const me = 'u_' + Math.floor(Math.random()*1000000);
+let me = 'u_' + Math.floor(Math.random()*1000000);
 let destroyed = true;
 let typingTimer = null;
-
-document.addEventListener('contextmenu', e=>e.preventDefault());
-document.addEventListener('copy',e=>e.preventDefault());
-document.addEventListener('selectstart',e=>e.preventDefault());
-window.addEventListener('blur', ()=>{
-  if(!destroyed) chatBox.classList.add('blur');
-});
-window.addEventListener('focus', ()=>{
-  chatBox.classList.remove('blur');
-});
 
 function enterRoom(){
   const val = document.getElementById('roomkey-input').value.trim();
   if(!val || joining) return;
   roomKey = val;
   enteredRoom = true;
-  joining = true; //上锁，防止连续点多次确认
+  joining = true;
   socket.emit('auto_join', roomKey);
   roomModal.style.display = 'none';
   destroyed = true;
+  isInRoom = true;
   chatBox.innerHTML = '';
   const tip = document.createElement('div');
   tip.className = 'destroy-tip';
@@ -299,25 +290,26 @@ function enterRoom(){
 }
 
 socket.on('disconnect', () => {
-  if(!destroyed){
-    connectStatus.style.display = 'block';
-  }
+  connectStatus.style.display = 'block';
+  connectStatus.textContent = '连接断开，正在重连...';
   hideTyping();
 });
 
 socket.on('connect', () => {
   connectStatus.style.display = 'none';
-  if(enteredRoom && roomKey){
+  // 只有标记进入房间，并且当前不在房间，才重新加入
+  if(enteredRoom && roomKey && !isInRoom){
     socket.emit('auto_join', roomKey);
+    isInRoom = true;
   }
 });
 
 socket.on('room_full', () => {
   roomkeyTip.style.display = 'block';
   setTimeout(()=>{roomkeyTip.style.display='none'},2500);
-  //房间满了，弹窗回来
   roomModal.style.display = 'flex';
   enteredRoom = false;
+  isInRoom = false;
 });
 
 socket.on('room_destroy', () => {
@@ -352,7 +344,7 @@ socket.on('message_read', (msgId) => {
 
 socket.on('receive_message', async (data) => {
   if(destroyed) return;
-  const txt = await decrypt(data.encrypted, ENCRYPT_SECRET);
+  const txt = await decrypt(data.encrypted, roomKey);
   addMessage(txt, false, data.msgId, true);
 });
 
@@ -385,7 +377,7 @@ async function sendMessage() {
     input.value = '';
     return;
   }
-  const enc = await encrypt(text, ENCRYPT_SECRET);
+  const enc = await encrypt(text, roomKey);
   socket.emit('send_message', {
     room:roomKey,
     msgId:msgId,
