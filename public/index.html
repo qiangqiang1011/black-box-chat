@@ -598,7 +598,7 @@
     });
 
     socket.on('online', async () => {
-      // 修复：补发公钥，解决丢包无法生成共享密钥
+      // 核心修复：对方上线，补发公钥，解决首次key_exchange丢包
       if(myPublicKey){
         socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
       }
