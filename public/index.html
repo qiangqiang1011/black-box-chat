@@ -269,6 +269,7 @@
     let sharedKey = null;
     let myPublicKey = null;
 
+    // 生成密钥对
     async function genKeyPair() {
       const keyPair = await window.crypto.subtle.generateKey(
         { name: "ECDH", namedCurve: "P-256" },
@@ -279,6 +280,7 @@
       return { keyPair, pubRaw: btoa(String.fromCharCode(...new Uint8Array(pubRaw))) };
     }
 
+    // 生成共享密钥
     async function deriveSharedKey(keyPair, remotePubB64) {
       const remoteRaw = Uint8Array.from(atob(remotePubB64), c => c.charCodeAt(0));
       const remotePub = await window.crypto.subtle.importKey(
@@ -294,6 +296,7 @@
       return aesKey;
     }
 
+    // 加密消息
     async function encryptMsg(plaintext, key) {
       const encoder = new TextEncoder();
       const data = encoder.encode(plaintext);
@@ -307,6 +310,7 @@
       return btoa(String.fromCharCode(...combined));
     }
 
+    // 解密消息
     async function decryptMsg(cipherB64, key) {
       try {
         const raw = Uint8Array.from(atob(cipherB64), c => c.charCodeAt(0));
@@ -321,6 +325,7 @@
       }
     }
 
+    // 渲染房间列表
     function renderDefault() {
       listWrap.innerHTML = '';
       for (let i = 1; i <= 8; i++) {
@@ -372,6 +377,7 @@
     }
     renderDefault();
 
+    // 更新房间状态
     socket.on('room_status', arr => {
       arr.forEach(v => {
         const dom = document.getElementById('r' + v.num);
@@ -400,6 +406,7 @@
       socket.emit('join', num);
     }
 
+    // 返回房间列表
     backBtn.addEventListener('click', () => {
       sharedKey = null;
       myPublicKey = null;
@@ -407,6 +414,7 @@
       chat.innerHTML = '';
       txt.value = '';
       txt.disabled = true;
+      txt.placeholder = '等待对方接入...';
       sendBtn.disabled = true;
       roomPanel.style.display = 'block';
       navRoom.textContent = '—';
@@ -414,6 +422,7 @@
       navDot.classList.remove('online');
     });
 
+    // 第一个进入房间，等对方
     socket.on('wait', async () => {
       inRoom = true;
       roomPanel.style.display = 'none';
@@ -433,18 +442,25 @@
       tip.appendChild(tipDesc);
       chat.appendChild(tip);
       txt.disabled = true;
+      txt.placeholder = '等待对方接入...';
       sendBtn.disabled = true;
 
+      // 生成自己的密钥对
       const kp = await genKeyPair();
       myPublicKey = kp;
       socket.emit('key_exchange', { pub: kp.pubRaw });
     });
 
-    // 核心修复：对方上线补发公钥，解决丢包导致无法加密的问题
+    // 双方都连上了
     socket.on('online', async () => {
-      if(myPublicKey){
-        socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
+      // 修复：如果还没生成密钥对（第二个人进房间），先生成
+      if(!myPublicKey){
+        const kp = await genKeyPair();
+        myPublicKey = kp;
       }
+
+      // 补发自己的公钥给对方
+      socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
 
       inRoom = true;
       roomPanel.style.display = 'none';
@@ -463,16 +479,21 @@
       tip.appendChild(tipTitle);
       tip.appendChild(tipDesc);
       chat.appendChild(tip);
+
+      // 修复：连接成功后启用输入框，修改提示文字
       txt.disabled = false;
+      txt.placeholder = '输入消息...';
       sendBtn.disabled = false;
       txt.focus();
     });
 
+    // 收到对方的公钥，生成共享密钥
     socket.on('key_exchange', async (payload) => {
       if(!myPublicKey) return;
       sharedKey = await deriveSharedKey(myPublicKey.keyPair, payload.pub);
     });
 
+    // 对方退出了
     socket.on('partner_leave', () => {
       inRoom = false;
       sharedKey = null;
@@ -492,15 +513,18 @@
       tip.appendChild(tipDesc);
       chat.appendChild(tip);
       txt.disabled = true;
+      txt.placeholder = '等待对方接入...';
       sendBtn.disabled = true;
     });
 
+    // 收到对方的消息
     socket.on('recv_cipher', async (cipher) => {
       if (!inRoom || !sharedKey) return;
       const plain = await decryptMsg(cipher, sharedKey);
       addMsg(plain, false);
     });
 
+    // 点发送按钮
     sendBtn.addEventListener('click', async () => {
       const val = txt.value.trim();
       if (!val || !inRoom || !sharedKey) return;
@@ -511,6 +535,7 @@
       chat.scrollTop = chat.scrollHeight;
     });
 
+    // 按回车发送
     txt.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -518,6 +543,7 @@
       }
     });
 
+    // 往聊天框加消息
     function addMsg(text, isMe) {
       const row = document.createElement('div');
       row.className = 'row ' + (isMe ? 'r' : 'l');
@@ -531,6 +557,7 @@
 
     socket.on('tip', msg => alert(msg));
 
+    // 关页面自动销毁密钥
     window.addEventListener('beforeunload', () => {
       sharedKey = null;
       myPublicKey = null;
