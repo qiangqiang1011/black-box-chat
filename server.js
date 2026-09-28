@@ -43,7 +43,7 @@ io.on('connection', (socket) => {
     // 移除当前用户
     room.clients = room.clients.filter(c=>c!==socket.id);
     room.count = room.clients.length;
-    // 通知房间内对方：用户已退出
+    // 只通知房间内对方：用户已退出，不强制对方离开房间
     socket.to(`room_${r}`).emit('partner_leave');
     socket.leave(`room_${r}`);
     socket.currentRoom = null;
