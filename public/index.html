@@ -598,6 +598,11 @@
     });
 
     socket.on('online', async () => {
+      // 修复：补发公钥，解决丢包无法生成共享密钥
+      if(myPublicKey){
+        socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
+      }
+
       inRoom = true;
       roomPanel.style.display = 'none';
       navRoom.textContent = '房间 ' + socket.currentRoom;
@@ -689,6 +694,13 @@
       sharedKey = null;
       myPublicKey = null;
     });
+
+    // 调试工具，F12控制台执行 debugChat.getState()
+    window.debugChat = {
+      getState:()=>{
+        console.log({inRoom, sharedKey, myPublicKey, currentRoom:socket.currentRoom})
+      }
+    }
   </script>
 </body>
 </html>
