@@ -11,7 +11,7 @@
       height: 100vh;
       background: #0a0a0a;
       color: #00ff41;
-      font-family: 'Courier New', Consolas, Monaco, monospace;
+      font-family: 'Courier New', Consolas, monospace;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -24,7 +24,7 @@
       top:0;left:0;
       width:100%;height:100%;
       background:#0a0a0a;
-      display:flex;
+      display:none;
       align-items:center;
       justify-content:center;
       z-index:999;
@@ -51,150 +51,150 @@
       font-size: 10px;
       opacity: 0.5;
       margin-top: 3px;
-      letter-spacing: 1px;
+      letter-spacing:1px;
       font-weight: normal;
     }
     .header .status {
       font-size: 10px;
       color: #ff4444;
       margin-top: 2px;
-      opacity: 0.8;
+      opacity:0.8;
+      display:none;
     }
 
     .typing-tip {
       font-size: 11px;
       color: #00ff41;
       opacity: 0.7;
-      padding: 4px 15px;
+      padding:4px 15px;
       background: #0f0f0f;
-      text-align: center;
-      flex-shrink: 0;
-      height: 0;
-      overflow: hidden;
+      text-align:center;
+      flex-shrink:0;
+      height:0;
+      overflow:hidden;
       transition: height 0.2s;
     }
-    .typing-tip.show { height: 22px; }
+    .typing-tip.show { height:22px; }
 
     #chat-box {
-      flex: 1;
-      padding: 15px;
-      overflow-y: auto;
+      flex:1;
+      padding:15px;
+      overflow-y:auto;
       transition: filter 0.2s;
     }
     #chat-box.blur { filter: blur(12px); }
-    #chat-box::-webkit-scrollbar { width: 4px; }
-    #chat-box::-webkit-scrollbar-thumb { background: #00ff4133; border-radius: 2px; }
+    #chat-box::-webkit-scrollbar { width:4px; }
+    #chat-box::-webkit-scrollbar-thumb { background:#00ff4133; border-radius:2px; }
 
     .destroy-tip {
-      text-align: center;
-      color: #ff4444;
-      font-size: 13px;
-      margin-top: 20px;
-      opacity: 0.8;
-      letter-spacing: 1px;
+      text-align:center;
+      color:#ff4444;
+      font-size:13px;
+      margin-top:20px;
+      opacity:0.8;
+      letter-spacing:1px;
     }
 
     .row {
-      display: flex;
-      margin-bottom: 12px;
-      align-items: flex-end;
+      display:flex;
+      margin-bottom:12px;
+      align-items:flex-end;
     }
-    .row.left { justify-content: flex-start; }
-    .row.right { justify-content: flex-end; }
+    .row.left { justify-content:flex-start; }
+    .row.right { justify-content:flex-end; }
     .bubble-wrap {
-      max-width: 78%;
-      display: flex;
-      flex-direction: column;
+      max-width:78%;
+      display:flex;
+      flex-direction:column;
     }
-    .row.right .bubble-wrap { align-items: flex-end; }
     .bubble {
-      padding: 10px 14px;
-      font-size: 14px;
-      line-height: 1.45;
-      word-wrap: break-word;
-      border-radius: 14px;
+      padding:10px 14px;
+      font-size:14px;
+      line-height:1.45;
+      word-wrap:break-word;
+      border-radius:14px;
     }
     .row.left .bubble {
-      background: #00ff411a;
-      color: #00ff41;
-      border: 1px solid #00ff4155;
-      border-bottom-left-radius: 4px;
+      background: rgba(0,255,65,0.1);
+      color:#00ff41;
+      border:1px solid rgba(0,255,65,0.33);
+      border-bottom-left-radius:4px;
     }
     .row.right .bubble {
-      background: #00ffff22;
-      color: #00ffff;
-      border: 1px solid #00ffff55;
-      border-bottom-right-radius: 4px;
+      background: rgba(0,255,255,0.1);
+      color:#00ffff;
+      border:1px solid rgba(0,255,255,0.33);
+      border-bottom-right-radius:4px;
     }
     .row.right .bubble.fail {
-      background: #ff44441a;
-      color: #ff4444;
-      border-color: #ff444455;
+      background:rgba(255,68,68,0.1);
+      color:#ff4444;
+      border-color:rgba(255,68,68,0.33);
     }
     .read-mark {
-      font-size: 10px;
-      opacity: 0.5;
-      margin-top: 3px;
-      padding-right: 4px;
+      font-size:10px;
+      opacity:0.5;
+      margin-top:3px;
+      padding-right:4px;
     }
     .fail-mark {
-      font-size: 10px;
-      color: #ff4444;
-      margin-top: 3px;
-      padding-right: 4px;
-      opacity: 0.9;
+      font-size:10px;
+      color:#ff4444;
+      margin-top:3px;
+      padding-right:4px;
+      opacity:0.9;
     }
 
     #input-area {
-      padding: 12px 15px;
-      background: #0f0f0f;
-      border-top: 1px solid #00ff4133;
-      display: flex;
-      gap: 10px;
+      padding:12px 15px;
+      background:#0f0f0f;
+      border-top:1px solid #00ff4133;
+      display:flex;
+      gap:10px;
       padding-bottom: calc(28px + env(safe-area-inset-bottom));
-      flex-shrink: 0;
+      flex-shrink:0;
     }
     #msg-input {
-      flex: 1;
-      background: #000;
-      border: 1px solid #00ff4166;
-      color: #00ff41;
-      padding: 10px 14px;
-      border-radius: 20px;
-      font-size: 14px;
-      outline: none;
+      flex:1;
+      background:#000;
+      border:1px solid #00ff4166;
+      color:#00ff41;
+      padding:10px 14px;
+      border-radius:20px;
+      font-size:14px;
+      outline:none;
       font-family: inherit;
-      -webkit-user-select: text;
-      user-select: text;
+      -webkit-user-select:text;
+      user-select:text;
     }
-    #msg-input:focus { border-color: #00ff41; }
+    #msg-input:focus { border-color:#00ff41; }
     button {
-      padding: 0 18px;
-      background: transparent;
-      border: 1px solid #00ff41;
-      color: #00ff41;
-      border-radius: 20px;
-      font-size: 14px;
-      cursor: pointer;
-      font-family: inherit;
-      transition: 0.2s;
+      padding:0 18px;
+      background:transparent;
+      border:1px solid #00ff41;
+      color:#00ff41;
+      border-radius:20px;
+      font-size:14px;
+      cursor:pointer;
+      font-family:inherit;
+      transition:0.15s;
     }
-    button:active { background: #00ff4122; }
+    button:active { background:rgba(0,255,65,0.2); }
 
     @media print {
-      body { display: none !important; }
+      body { display:none !important; }
     }
   </style>
 </head>
 <body>
-  <div id="full-modal" style="display:none;">
+  <div id="full-modal">
     <div class="full-text">房间占用<br/>当前最多2人同时在线</div>
   </div>
 
   <div class="header">
     <div>黑盒信道</div>
     <div class="tip">端到端加密 · 双人即毁</div>
-    <div class="status" id="connect-status" style="display:none;">连接已断开</div>
+    <div class="status" id="connect-status">连接已断开</div>
   </div>
 
   <div class="typing-tip" id="typing-tip"></div>
@@ -221,25 +221,27 @@
     let destroyed = false;
     let typingTimer = null;
 
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('copy', e => e.preventDefault());
-    document.addEventListener('selectstart', e => e.preventDefault());
-    window.addEventListener('blur', () => {
-      if (!destroyed) chatBox.classList.add('blur');
+    document.addEventListener('contextmenu', e=>e.preventDefault());
+    document.addEventListener('copy',e=>e.preventDefault());
+    document.addEventListener('selectstart',e=>e.preventDefault());
+    window.addEventListener('blur', ()=>{
+      if(!destroyed) chatBox.classList.add('blur');
     });
-    window.addEventListener('focus', () => {
+    window.addEventListener('focus', ()=>{
       chatBox.classList.remove('blur');
     });
 
     socket.on('disconnect', () => {
-      if (!destroyed) {
+      if(!destroyed){
         connectStatus.style.display = 'block';
       }
       hideTyping();
     });
+
     socket.on('connect', () => {
       connectStatus.style.display = 'none';
-      if (!destroyed) {
+      // 如果信道已经销毁，重连后不请求历史消息
+      if(!destroyed){
         socket.emit('auto_join');
       }
     });
@@ -248,46 +250,21 @@
       fullModal.style.display = 'flex';
     });
 
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    async function getKey(secret) {
-      const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(secret));
-      return crypto.subtle.importKey('raw', keyHash, { name: 'AES-CBC' }, false, ['encrypt', 'decrypt']);
-    }
-    async function encrypt(text, secret) {
-      const key = await getKey(secret);
-      const iv = crypto.getRandomValues(new Uint8Array(16));
-      const encrypted = await crypto.subtle.encrypt({ name: 'AES-CBC', iv: iv }, key, encoder.encode(text));
-      return {
-        iv: btoa(String.fromCharCode(...iv)),
-        data: btoa(String.fromCharCode(...new Uint8Array(encrypted)))
-      };
-    }
-    async function decrypt(encryptedObj, secret) {
-      try {
-        const key = await getKey(secret);
-        const iv = new Uint8Array(atob(encryptedObj.iv).split('').map(c => c.charCodeAt(0)));
-        const data = new Uint8Array(atob(encryptedObj.data).split('').map(c => c.charCodeAt(0)));
-        const decrypted = await crypto.subtle.decrypt({ name: 'AES-CBC', iv: iv }, key, data);
-        return decoder.decode(decrypted);
-      } catch (e) {
-        return '[解密失败]';
-      }
-    }
-
+    // 【重点】收到历史消息的时候，先判断信道是否销毁
     socket.on('room_history', async (history) => {
+      if(destroyed) return;
       chatBox.innerHTML = '';
-      for (const item of history) {
-        const text = await decrypt(item.encrypted, ENCRYPT_SECRET);
-        addMessage(text, item.sender === me, item.msgId, false, false);
+      for(const item of history){
+        const txt = await decrypt(item.encrypted, ENCRYPT_SECRET);
+        addMessage(txt, item.sender === me, item.msgId, false);
       }
-      chatBox.scrollTop = chatBox.scrollHeight;
+      scrollBottom();
     });
 
     socket.on('room_destroy', () => {
-      if (destroyed) return;
+      if(destroyed) return;
       destroyed = true;
-      if (typingTimer) clearTimeout(typingTimer);
+      if(typingTimer) clearTimeout(typingTimer);
       hideTyping();
       chatBox.innerHTML = '';
       const tip = document.createElement('div');
@@ -300,102 +277,119 @@
     });
 
     socket.on('message_read', (msgId) => {
-      const mark = document.querySelector(`[data-msg-id="${msgId}"] .read-mark`);
-      if (mark) mark.textContent = '已读';
+      const mark = document.querySelector(`[data-msgid="${msgId}"] .read-mark`);
+      if(mark) mark.textContent = '已读';
     });
 
     socket.on('receive_message', async (data) => {
-      if (data.sender === me) return;
-      const text = await decrypt(data.encrypted, ENCRYPT_SECRET);
-      addMessage(text, false, data.msgId);
-      socket.emit('read_receipt', { room: ROOM_ID, msgId: data.msgId });
+      if(destroyed) return;
+      const txt = await decrypt(data.encrypted, ENCRYPT_SECRET);
+      addMessage(txt, data.sender === me, data.msgId, true);
     });
 
-    function sendTyping() {
-      if (destroyed) return;
-      socket.emit('typing', { room: ROOM_ID, sender: me });
-    }
-    function sendStopTyping() {
-      if (destroyed) return;
-      socket.emit('stop_typing', { room: ROOM_ID, sender: me });
-    }
-    function showTyping() {
-      typingTip.classList.add('show');
-      typingTip.textContent = '对方正在输入...';
-    }
-    function hideTyping() {
-      typingTip.classList.remove('show');
-    }
+    socket.on('user_typing', () => {
+      if(destroyed) return;
+      showTyping();
+    });
+    socket.on('user_stop_typing', () => {
+      hideTyping();
+    });
 
-    input.addEventListener('input', () => {
-      if (destroyed) return;
-      sendTyping();
-      if (typingTimer) clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => {
-        sendStopTyping();
-      }, 1000);
+    input.addEventListener('input', ()=>{
+      if(destroyed) return;
+      socket.emit('typing', {room:ROOM_ID, sender:me});
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(()=>{
+        socket.emit('stop_typing', {room:ROOM_ID, sender:me});
+      },1000);
     });
 
     async function sendMessage() {
       const text = input.value.trim();
-      if (!text || input.disabled) return;
-      const msgId = Date.now() + '_' + Math.floor(Math.random() * 1000);
+      if(!text || input.disabled) return;
+      const msgId = Date.now() + '_' + Math.floor(Math.random()*10000);
+      clearTimeout(typingTimer);
+      socket.emit('stop_typing', {room:ROOM_ID, sender:me});
 
-      if (typingTimer) clearTimeout(typingTimer);
-      sendStopTyping();
-
-      if (!socket.connected) {
+      if(!socket.connected){
         addMessage(text, true, msgId, true, true);
         input.value = '';
-        input.focus();
         return;
       }
-
-      const encrypted = await encrypt(text, ENCRYPT_SECRET);
+      const enc = await encrypt(text, ENCRYPT_SECRET);
       socket.emit('send_message', {
-        room: ROOM_ID,
-        msgId: msgId,
-        sender: me,
-        encrypted: encrypted
+        room:ROOM_ID,
+        msgId:msgId,
+        sender:me,
+        encrypted:enc
       });
-
-      addMessage(text, true, msgId);
+      addMessage(text, true, msgId, false);
       input.value = '';
-      input.focus();
+      scrollBottom();
     }
 
-    function addMessage(text, isMe, msgId, scroll = true, isFail = false) {
+    function addMessage(text, isMe, msgId, scroll=true, fail=false) {
       const row = document.createElement('div');
-      row.className = 'row ' + (isMe ? 'right' : 'left');
-      row.dataset.msgId = msgId;
-
+      row.className = 'row ' + (isMe ? 'right':'left');
+      row.setAttribute('data-msgid',msgId);
       const wrap = document.createElement('div');
       wrap.className = 'bubble-wrap';
       const bubble = document.createElement('div');
-      bubble.className = 'bubble' + (isFail ? ' fail' : '');
+      bubble.className = 'bubble' + (fail ? ' fail':'');
       bubble.textContent = text;
+      const mark = document.createElement('div');
+      mark.className = fail ? 'fail-mark' : 'read-mark';
+      mark.textContent = fail ? '发送失败' : '';
       wrap.appendChild(bubble);
-
-      if (isMe) {
-        const mark = document.createElement('div');
-        if (isFail) {
-          mark.className = 'fail-mark';
-          mark.textContent = '发送失败';
-        } else {
-          mark.className = 'read-mark';
-          mark.textContent = '';
-        }
-        wrap.appendChild(mark);
-      }
-
+      wrap.appendChild(mark);
       row.appendChild(wrap);
       chatBox.appendChild(row);
-      if (scroll) chatBox.scrollTop = chatBox.scrollHeight;
+      if(scroll) scrollBottom();
+    }
+    function scrollBottom(){
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+    function showTyping(){
+      typingTip.textContent = '对方正在输入...';
+      typingTip.classList.add('show');
+    }
+    function hideTyping(){
+      typingTip.classList.remove('show');
     }
 
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendMessage();
-    });
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    async function getKey(secret){
+      const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(secret));
+      return crypto.subtle.importKey('raw', hashBuf, {name:'AES-CBC'}, false, ['encrypt','decrypt']);
+    }
+    async function encrypt(text, secret){
+      const key = await getKey(secret);
+      const iv = crypto.getRandomValues(new Uint8Array(16));
+      const encBuf = await crypto.subtle.encrypt({name:'AES-CBC', iv}, key, encoder.encode(text));
+      return {
+        iv: btoa(String.fromCharCode(...iv)),
+        data: btoa(String.fromCharCode(...new Uint8Array(encBuf)))
+      };
+    }
+    async function decrypt(obj, secret){
+      try{
+        const key = await getKey(secret);
+        const iv = Uint8Array.from(atob(obj.iv), c=>c.charCodeAt(0));
+        const data = Uint8Array.from(atob(obj.data), c=>c.charCodeAt(0));
+        const plainBuf = await crypto.subtle.decrypt({name:'AES-CBC', iv}, key, data);
+        return decoder.decode(plainBuf);
+      }catch(e){
+        return '[解密失败]';
+      }
+    }
+
+    input.addEventListener('keydown', e=>{
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        sendMessage();
+      }
+    })
   </script>
 </body>
 </html>
