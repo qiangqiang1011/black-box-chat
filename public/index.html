@@ -119,10 +119,7 @@
       margin-bottom: 8px;
       font-weight: 500;
     }
-    .rule-box ul {
-      list-style: none;
-      padding-left: 0;
-    }
+    .rule-box ul { list-style: none; padding-left: 0; }
     .rule-box li {
       padding-left: 14px;
       position: relative;
@@ -259,8 +256,9 @@
       <h4>销毁规则</h4>
       <ul>
         <li>服务端全程仅转发密文，不存储任何聊天内容、加密密钥、访问日志</li>
-        <li>退出房间时，本地浏览器内存中的聊天记录、密钥立即全部清空</li>
-        <li>对方离线/退出房间，本地密钥和聊天记录自动销毁</li>
+        <li>点击返回仅销毁本地记录并退出房间，不会强制对方退出</li>
+        <li>对方退出房间时，仅销毁本地聊天记录与密钥，保留在当前房间</li>
+        <li>切换浏览器标签页/浏览器切至后台，本地会话记录与密钥自动销毁</li>
         <li>关闭浏览器标签页，所有会话数据自动从内存清除，不留痕迹</li>
         <li>所有明文仅存在双方浏览器内存，不写入本地缓存、不落地存储</li>
       </ul>
@@ -369,24 +367,32 @@
       }
     }
 
+    // 本地销毁记录与密钥
+    function destroyLocalData() {
+      sharedKey = null;
+      myPublicKey = null;
+      chat.innerHTML = '';
+      txt.value = '';
+    }
+
     // 渲染房间列表
     function renderDefault() {
       listWrap.innerHTML = '';
       for (let i = 1; i <= 8; i++) {
         const wrap = document.createElement('div');
         wrap.className = 'room-item';
-        wrap.id = `r${i}`;
+        wrap.id = 'r'+i;
 
         const leftDiv = document.createElement('div');
         leftDiv.className = 'room-left';
         const numBox = document.createElement('div');
         numBox.className = 'room-number';
-        numBox.textContent = `${i}`;
+        numBox.textContent = i;
         const metaDiv = document.createElement('div');
         metaDiv.className = 'room-meta';
         const nameDiv = document.createElement('div');
         nameDiv.className = 'room-name';
-        nameDiv.textContent = `房间 ${i}`;
+        nameDiv.textContent = '房间 '+i;
         const descDiv = document.createElement('div');
         descDiv.className = 'room-desc';
         descDiv.textContent = '私密双人信道';
@@ -424,7 +430,7 @@
     // 更新房间状态
     socket.on('room_status', arr => {
       arr.forEach(v => {
-        const dom = document.getElementById('r' + v.num);
+        const dom = document.getElementById('r'+v.num);
         if (!dom) return;
         dom.className = 'room-item ' + (v.full ? 'room-full' : '');
         const btn = dom.querySelector('button');
@@ -450,14 +456,11 @@
       socket.emit('join', num);
     }
 
-    // 返回房间列表 - 执行销毁
+    // 点击返回：销毁本地记录，退出房间回到列表
     backBtn.addEventListener('click', () => {
-      // 销毁密钥和聊天记录
-      sharedKey = null;
-      myPublicKey = null;
+      socket.emit('leave_room');
+      destroyLocalData();
       inRoom = false;
-      chat.innerHTML = '';
-      txt.value = '';
       txt.disabled = true;
       txt.placeholder = '等待对方接入...';
       sendBtn.disabled = true;
@@ -467,7 +470,14 @@
       navDot.classList.remove('online');
     });
 
-    // 第一个进入房间，等对方
+    // 切后台自动销毁
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && inRoom) {
+        destroyLocalData();
+      }
+    });
+
+    // 第一个进入房间
     socket.on('wait', async () => {
       inRoom = true;
       roomPanel.style.display = 'none';
@@ -490,21 +500,17 @@
       txt.placeholder = '等待对方接入...';
       sendBtn.disabled = true;
 
-      // 生成自己的密钥对
       const kp = await genKeyPair();
       myPublicKey = kp;
       socket.emit('key_exchange', { pub: kp.pubRaw });
     });
 
-    // 双方都连上了
+    // 双方连接成功
     socket.on('online', async () => {
-      // 修复：第二个人进房间先生成密钥对
       if(!myPublicKey){
         const kp = await genKeyPair();
         myPublicKey = kp;
       }
-
-      // 补发自己的公钥给对方，防止丢包
       socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
 
       inRoom = true;
@@ -525,28 +531,23 @@
       tip.appendChild(tipDesc);
       chat.appendChild(tip);
 
-      // 启用输入框
       txt.disabled = false;
       txt.placeholder = '输入消息...';
       sendBtn.disabled = false;
       txt.focus();
     });
 
-    // 收到对方的公钥，生成共享密钥
+    // 收到对方公钥
     socket.on('key_exchange', async (payload) => {
       if(!myPublicKey) return;
       sharedKey = await deriveSharedKey(myPublicKey.keyPair, payload.pub);
     });
 
-    // 对方退出 - 执行销毁
+    // 对方退出：仅销毁本地记录，不退出房间
     socket.on('partner_leave', () => {
-      inRoom = false;
-      // 销毁密钥和聊天记录
-      sharedKey = null;
-      myPublicKey = null;
-      navStatusText.textContent = '等待中';
+      destroyLocalData();
+      navStatusText.textContent = '对方已退出';
       navDot.classList.remove('online');
-      chat.innerHTML = '';
       const tip = document.createElement('div');
       tip.className = 'tip-card';
       const tipTitle = document.createElement('div');
@@ -554,23 +555,23 @@
       tipTitle.textContent = '对方已退出';
       const tipDesc = document.createElement('div');
       tipDesc.className = 'tip-desc';
-      tipDesc.textContent = '密钥销毁，聊天记录已销毁';
+      tipDesc.textContent = '本地记录已自动销毁';
       tip.appendChild(tipTitle);
       tip.appendChild(tipDesc);
       chat.appendChild(tip);
       txt.disabled = true;
-      txt.placeholder = '等待对方接入...';
+      txt.placeholder = '对方已退出';
       sendBtn.disabled = true;
     });
 
-    // 收到对方的消息
+    // 收到消息
     socket.on('recv_cipher', async (cipher) => {
       if (!inRoom || !sharedKey) return;
       const plain = await decryptMsg(cipher, sharedKey);
       addMsg(plain, false);
     });
 
-    // 点发送按钮
+    // 发送消息
     sendBtn.addEventListener('click', async () => {
       const val = txt.value.trim();
       if (!val || !inRoom || !sharedKey) return;
@@ -581,7 +582,7 @@
       chat.scrollTop = chat.scrollHeight;
     });
 
-    // 按回车发送
+    // 回车发送
     txt.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -589,7 +590,7 @@
       }
     });
 
-    // 往聊天框加消息
+    // 添加消息气泡
     function addMsg(text, isMe) {
       const row = document.createElement('div');
       row.className = 'row ' + (isMe ? 'r' : 'l');
@@ -603,10 +604,9 @@
 
     socket.on('tip', msg => alert(msg));
 
-    // 关闭页面 - 执行销毁
+    // 关闭页面销毁
     window.addEventListener('beforeunload', () => {
-      sharedKey = null;
-      myPublicKey = null;
+      destroyLocalData();
     });
   </script>
 </body>
