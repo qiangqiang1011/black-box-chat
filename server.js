@@ -47,20 +47,20 @@ io.on('connection', (socket) => {
       socket.leave(socket.currentRoomKey);
       if(oldRoom.clients.size === 1){
         io.to(socket.currentRoomKey).emit('room_destroy');
-        oldRoom.history = [];
       }
     }
 
-    socket.join(roomKey);
-    socket.currentRoomKey = roomKey;
-    room.clients.add(socket.id);
-    console.log(`${socket.id} 加入房间【${roomKey}】，当前人数：${room.clients.size}`);
+    socket.join(roomKey, () => {
+      socket.currentRoomKey = roomKey;
+      room.clients.add(socket.id);
+      console.log(`${socket.id} 加入房间【${roomKey}】，当前人数：${room.clients.size}`);
 
-    if(room.clients.size === 1){
-      socket.emit('wait_peer');
-    }else if(room.clients.size === 2){
-      io.to(roomKey).emit('peer_online');
-    }
+      if(room.clients.size === 1){
+        socket.emit('wait_peer');
+      }else if(room.clients.size === 2){
+        io.to(roomKey).emit('peer_online');
+      }
+    });
   });
 
   socket.on('send_message', (data) => {
@@ -100,6 +100,7 @@ io.on('connection', (socket) => {
 
     if (room.clients.size === 1) {
       io.to(roomKey).emit('room_destroy');
+      socket.to(roomKey).emit('wait_peer');
     }
   });
 });
