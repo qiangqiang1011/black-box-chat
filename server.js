@@ -34,7 +34,6 @@ function broadcastRoomStatus(){
 io.on('connection', (socket) => {
   console.log('客户端连接', socket.id);
   socket.currentRoom = null;
-
   broadcastRoomStatus();
 
   // 加入房间
@@ -46,7 +45,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // 退出之前的房间
+    // 退出之前房间
     if(socket.currentRoom !== null){
       const old = rooms.get(socket.currentRoom);
       if(old){
@@ -59,7 +58,6 @@ io.on('connection', (socket) => {
     socket.join(`room_${roomNum}`);
     room.clients.push(socket.id);
     room.count = room.clients.length;
-
     broadcastRoomStatus();
 
     if(room.count ===1){
@@ -69,37 +67,34 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 密钥交换，单纯透传
+  // 密钥交换透传
   socket.on('key_exchange', (payload)=>{
     const r = socket.currentRoom;
     if(!r) return;
     socket.to(`room_${r}`).emit('key_exchange', payload);
   });
 
-  // 密文转发，服务器不解密、不存储
+  // 密文转发
   socket.on('send_cipher', (cipher)=>{
     const r = socket.currentRoom;
     if(!r) return;
     socket.to(`room_${r}`).emit('recv_cipher', cipher);
   });
 
-  // 用户断线处理
+  // 用户断线
   socket.on('disconnect', ()=>{
     const r = socket.currentRoom;
     if(r === null) return;
     const room = rooms.get(r);
     if(!room) return;
-
     room.clients = room.clients.filter(c=>c!==socket.id);
     room.count = room.clients.length;
-
     socket.to(`room_${r}`).emit('partner_leave');
     broadcastRoomStatus();
   });
 });
 
-// ========== 重点：监听80端口 ==========
-const PORT = process.env.PORT || 80;
+const PORT = 3000;
 server.listen(PORT, ()=>{
-  console.log(`服务启动，端口 ${PORT}`);
+  console.log(`服务启动，监听端口 ${PORT}`);
 });
