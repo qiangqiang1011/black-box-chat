@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -81,7 +81,7 @@
     }
     #enter-btn:active { background: #00ff4122; }
 
-    /* 聊天界面 */
+    /* 聊天头部 */
     .header {
       padding: 12px 15px;
       background: #0f0f0f;
@@ -119,9 +119,7 @@
       overflow: hidden;
       transition: height 0.2s;
     }
-    .typing-tip.show {
-      height: 22px;
-    }
+    .typing-tip.show { height: 22px; }
 
     #chat-box {
       flex: 1;
@@ -176,7 +174,6 @@
       border: 1px solid #00ffff55;
       border-bottom-right-radius: 4px;
     }
-    /* 发送失败的气泡 */
     .row.right .bubble.fail {
       background: #ff44441a;
       color: #ff4444;
@@ -268,44 +265,44 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    const chatBox = document.getElementById("chat-box");
-    const input = document.getElementById("msg-input");
-    const entryModal = document.getElementById("entry-modal");
-    const codeInput = document.getElementById("code-input");
-    const enterBtn = document.getElementById("enter-btn");
-    const entryError = document.getElementById("entry-error");
-    const header = document.querySelector(".header");
-    const inputArea = document.getElementById("input-area");
-    const connectStatus = document.getElementById("connect-status");
-    const typingTip = document.getElementById("typing-tip");
+    const chatBox = document.getElementById('chat-box');
+    const input = document.getElementById('msg-input');
+    const entryModal = document.getElementById('entry-modal');
+    const codeInput = document.getElementById('code-input');
+    const enterBtn = document.getElementById('enter-btn');
+    const entryError = document.getElementById('entry-error');
+    const header = document.querySelector('.header');
+    const inputArea = document.getElementById('input-area');
+    const connectStatus = document.getElementById('connect-status');
+    const typingTip = document.getElementById('typing-tip');
 
-    const me = "u_" + Math.floor(Math.random() * 100000);
-    let currentRoom = "";
+    const me = 'u_' + Math.floor(Math.random() * 100000);
+    let currentRoom = '';
     let destroyed = false;
-    let typingTimer = null; // 输入防抖定时器
+    let typingTimer = null;
 
     // ===== 防泄露防护 =====
-    document.addEventListener("contextmenu", e => e.preventDefault());
-    document.addEventListener("copy", e => e.preventDefault());
-    document.addEventListener("selectstart", e => e.preventDefault());
-    window.addEventListener("blur", () => {
-      if (currentRoom && !destroyed) chatBox.classList.add("blur");
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('copy', e => e.preventDefault());
+    document.addEventListener('selectstart', e => e.preventDefault());
+    window.addEventListener('blur', () => {
+      if (currentRoom && !destroyed) chatBox.classList.add('blur');
     });
-    window.addEventListener("focus", () => {
-      chatBox.classList.remove("blur");
+    window.addEventListener('focus', () => {
+      chatBox.classList.remove('blur');
     });
 
     // ===== 连接状态提示 =====
-    socket.on("disconnect", () => {
+    socket.on('disconnect', () => {
       if (currentRoom && !destroyed) {
-        connectStatus.style.display = "block";
+        connectStatus.style.display = 'block';
       }
       hideTyping();
     });
-    socket.on("connect", () => {
-      connectStatus.style.display = "none";
+    socket.on('connect', () => {
+      connectStatus.style.display = 'none';
       if (currentRoom && !destroyed) {
-        socket.emit("join_room", currentRoom);
+        socket.emit('join_room', currentRoom);
       }
     });
 
@@ -340,33 +337,36 @@
     // ===== 进入房间 =====
     function enterRoom() {
       const code = codeInput.value.trim();
-      if (!code) return;
-      entryError.style.display = "none";
+      if (!code) {
+        alert('请输入暗号');
+        return;
+      }
+      entryError.style.display = 'none';
       currentRoom = code;
-      socket.emit("join_room", code);
+      socket.emit('join_room', code);
     }
-    enterBtn.addEventListener("click", enterRoom);
-    codeInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") enterRoom();
+    enterBtn.addEventListener('click', enterRoom);
+    codeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') enterRoom();
     });
 
     // 房间满员提示
-    socket.on("room_full", () => {
-      entryError.style.display = "block";
+    socket.on('room_full', () => {
+      entryError.style.display = 'block';
     });
 
-    // 有历史消息时，进入成功显示聊天界面
-    socket.on("room_history", () => {
-      if (entryModal.style.display !== "none") {
+    // 收到历史消息 = 进入成功，显示聊天界面
+    socket.on('room_history', () => {
+      if (entryModal.style.display !== 'none') {
         showChatInterface();
       }
     });
 
-    // 空房间进入成功（无历史）也显示界面
-    socket.on("connect", () => {
-      if (currentRoom && entryModal.style.display !== "none" && !destroyed) {
+    // 空房间进入成功也显示界面
+    socket.on('connect', () => {
+      if (currentRoom && entryModal.style.display !== 'none' && !destroyed) {
         setTimeout(() => {
-          if (entryError.style.display !== "block") {
+          if (entryError.style.display !== 'block') {
             showChatInterface();
           }
         }, 300);
@@ -374,11 +374,11 @@
     });
 
     function showChatInterface() {
-      entryModal.style.display = "none";
-      header.style.display = "block";
-      typingTip.style.display = "block";
-      chatBox.style.display = "block";
-      inputArea.style.display = "flex";
+      entryModal.style.display = 'none';
+      header.style.display = 'block';
+      typingTip.style.display = 'block';
+      chatBox.style.display = 'block';
+      inputArea.style.display = 'flex';
       input.focus();
     }
 
@@ -387,54 +387,37 @@
       if (!currentRoom || destroyed) return;
       socket.emit('typing', { room: currentRoom, sender: me });
     }
-
     function sendStopTyping() {
       if (!currentRoom || destroyed) return;
       socket.emit('stop_typing', { room: currentRoom, sender: me });
     }
-
     function showTyping() {
       typingTip.classList.add('show');
-      typingTip.textContent = "对方正在输入...";
+      typingTip.textContent = '对方正在输入...';
     }
-
     function hideTyping() {
       typingTip.classList.remove('show');
     }
 
-    // 输入框监听
     input.addEventListener('input', () => {
       if (destroyed) return;
-      
       sendTyping();
-      
-      // 清除之前的定时器
       if (typingTimer) clearTimeout(typingTimer);
-      
-      // 停止输入1秒后发送停止输入
       typingTimer = setTimeout(() => {
         sendStopTyping();
       }, 1000);
     });
 
-    // 收到对方正在输入
     socket.on('user_typing', (sender) => {
-      if (sender !== me && !destroyed) {
-        showTyping();
-      }
+      if (sender !== me && !destroyed) showTyping();
     });
-
-    // 收到对方停止输入
     socket.on('user_stop_typing', (sender) => {
-      if (sender !== me) {
-        hideTyping();
-      }
+      if (sender !== me) hideTyping();
     });
 
     // ===== 加载历史消息 =====
-    socket.on("room_history", async (history) => {
-      // 加载前清空，避免重连重复
-      chatBox.innerHTML = "";
+    socket.on('room_history', async (history) => {
+      chatBox.innerHTML = '';
       for (const item of history) {
         const text = await decrypt(item.encrypted, currentRoom);
         addMessage(text, item.sender === me, item.msgId, false, false);
@@ -443,62 +426,54 @@
     });
 
     // ===== 房间销毁 =====
-    socket.on("room_destroy", () => {
+    socket.on('room_destroy', () => {
       if (destroyed) return;
       destroyed = true;
-      
-      // 清除输入定时器
       if (typingTimer) clearTimeout(typingTimer);
       hideTyping();
-      
-      chatBox.innerHTML = "";
-      const tip = document.createElement("div");
-      tip.className = "destroy-tip";
-      tip.textContent = "— 对方已退出，记录已销毁 —";
+      chatBox.innerHTML = '';
+      const tip = document.createElement('div');
+      tip.className = 'destroy-tip';
+      tip.textContent = '— 对方已退出，记录已销毁 —';
       chatBox.appendChild(tip);
-      
       input.disabled = true;
-      input.value = "";
-      input.placeholder = "信道已断开";
+      input.value = '';
+      input.placeholder = '信道已断开';
     });
 
     // ===== 已读回执 =====
-    socket.on("message_read", (msgId) => {
+    socket.on('message_read', (msgId) => {
       const mark = document.querySelector(`[data-msg-id="${msgId}"] .read-mark`);
-      if (mark) mark.textContent = "已读";
+      if (mark) mark.textContent = '已读';
     });
 
     // ===== 收到消息 =====
-    socket.on("receive_message", async (data) => {
+    socket.on('receive_message', async (data) => {
       if (data.sender === me) return;
       const text = await decrypt(data.encrypted, currentRoom);
       addMessage(text, false, data.msgId);
-      socket.emit("read_receipt", { room: currentRoom, msgId: data.msgId });
+      socket.emit('read_receipt', { room: currentRoom, msgId: data.msgId });
     });
 
     // ===== 发送消息 =====
     async function sendMessage() {
       const text = input.value.trim();
       if (!text || !currentRoom || input.disabled) return;
-
       const msgId = Date.now() + '_' + Math.floor(Math.random() * 1000);
 
-      // 停止输入状态
       if (typingTimer) clearTimeout(typingTimer);
       sendStopTyping();
 
-      // 判断网络状态，未连接则标记发送失败
+      // 断网标记发送失败
       if (!socket.connected) {
         addMessage(text, true, msgId, true, true);
-        input.value = "";
+        input.value = '';
         input.focus();
         return;
       }
 
-      // 加密消息
       const encrypted = await encrypt(text, currentRoom);
-
-      socket.emit("send_message", {
+      socket.emit('send_message', {
         room: currentRoom,
         msgId: msgId,
         sender: me,
@@ -506,31 +481,31 @@
       });
 
       addMessage(text, true, msgId);
-      input.value = "";
+      input.value = '';
       input.focus();
     }
 
     // ===== 渲染消息 =====
     function addMessage(text, isMe, msgId, scroll = true, isFail = false) {
-      const row = document.createElement("div");
-      row.className = "row " + (isMe ? "right" : "left");
+      const row = document.createElement('div');
+      row.className = 'row ' + (isMe ? 'right' : 'left');
       row.dataset.msgId = msgId;
 
-      const wrap = document.createElement("div");
-      wrap.className = "bubble-wrap";
-      const bubble = document.createElement("div");
-      bubble.className = "bubble" + (isFail ? " fail" : "");
+      const wrap = document.createElement('div');
+      wrap.className = 'bubble-wrap';
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble' + (isFail ? ' fail' : '');
       bubble.textContent = text;
       wrap.appendChild(bubble);
 
       if (isMe) {
-        const mark = document.createElement("div");
+        const mark = document.createElement('div');
         if (isFail) {
-          mark.className = "fail-mark";
-          mark.textContent = "发送失败";
+          mark.className = 'fail-mark';
+          mark.textContent = '发送失败';
         } else {
-          mark.className = "read-mark";
-          mark.textContent = "";
+          mark.className = 'read-mark';
+          mark.textContent = '';
         }
         wrap.appendChild(mark);
       }
@@ -541,8 +516,8 @@
     }
 
     // 回车发送
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") sendMessage();
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage();
     });
   </script>
 </body>
