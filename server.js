@@ -13,13 +13,13 @@ app.get('/healthz', (req, res) => {
   res.sendStatus(200);
 });
 
-const PORT = process.env.PORT || 3000;
+// 适配云托管默认 80 探针
+const PORT = process.env.PORT || 80;
 const FIXED_ROOM = "default_room_001";
 let roomHistory = [];
 const onlineClients = new Set();
 const MAX_ROOM_SIZE = 2;
 
-// 广播当前在线状态，检查是否凑齐双人
 function broadcastPeerState() {
   if(onlineClients.size === 2) {
     io.to(FIXED_ROOM).emit('peer_online');
@@ -39,8 +39,6 @@ io.on('connection', (socket) => {
     socket.currentRoom = FIXED_ROOM;
     onlineClients.add(socket.id);
     console.log(`${socket.id}加入房间，在线：`, onlineClients.size);
-
-    // 如果刚好两个人，通知双方可以开始聊天
     broadcastPeerState();
   });
 
@@ -75,16 +73,13 @@ io.on('connection', (socket) => {
     onlineClients.delete(socket.id);
     console.log(`${socket.id}离开房间，在线：`, onlineClients.size);
 
-    // 还有1个人在线 → 触发销毁
     if (onlineClients.size === 1) {
       io.to(room).emit('room_destroy');
       roomHistory = [];
     }
-    // 全部离线，清空历史
     if(onlineClients.size === 0){
       roomHistory = [];
     }
-    // 重新广播在线状态
     broadcastPeerState();
   });
 });
