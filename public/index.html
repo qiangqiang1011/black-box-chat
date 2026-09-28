@@ -293,8 +293,19 @@
       fullModal.style.display = 'flex';
     });
 
+    socket.on('wait_peer',()=>{
+      destroyed = true;
+      document.getElementById('room-modal').style.display = 'none';
+      chatBox.innerHTML = '';
+      const tip = document.createElement('div');
+      tip.className = 'destroy-tip';
+      tip.textContent = '✅ 房间已创建，正在等待对方输入相同密钥接入...';
+      chatBox.appendChild(tip);
+      input.disabled = true;
+      input.placeholder = '等待对方上线...';
+    })
+
     socket.on('room_destroy', () => {
-      if(destroyed) return;
       destroyed = true;
       if(typingTimer) clearTimeout(typingTimer);
       hideTyping();
@@ -305,16 +316,15 @@
       chatBox.appendChild(tip);
       input.disabled = true;
       input.value = '';
-      input.placeholder = '信道已断开';
+      input.placeholder = '等待对方上线...';
     });
 
     socket.on('peer_online', () => {
       destroyed = false;
-      document.getElementById('room-modal').style.display = 'none';
       chatBox.innerHTML = '';
       const tip = document.createElement('div');
       tip.className = 'rebuild-tip';
-      tip.textContent = '对方重新上线，信道重建';
+      tip.textContent = '对方接入成功，信道已建立';
       chatBox.appendChild(tip);
       input.disabled = false;
       input.placeholder = '输入消息...';
