@@ -29,13 +29,6 @@ function getRoom(roomKey) {
   return rooms[roomKey];
 }
 
-function broadcastPeerState(roomKey) {
-  const room = getRoom(roomKey);
-  if (room.clients.size === 2) {
-    io.to(roomKey).emit('peer_online');
-  }
-}
-
 io.on('connection', (socket) => {
   console.log('新连接：', socket.id);
   socket.currentRoomKey = null;
@@ -56,14 +49,18 @@ io.on('connection', (socket) => {
         io.to(socket.currentRoomKey).emit('room_destroy');
         oldRoom.history = [];
       }
-      broadcastPeerState(socket.currentRoomKey);
     }
 
     socket.join(roomKey);
     socket.currentRoomKey = roomKey;
     room.clients.add(socket.id);
     console.log(`${socket.id} 加入房间【${roomKey}】，当前人数：${room.clients.size}`);
-    broadcastPeerState(roomKey);
+
+    if(room.clients.size === 1){
+      socket.emit('wait_peer');
+    }else if(room.clients.size === 2){
+      io.to(roomKey).emit('peer_online');
+    }
   });
 
   socket.on('send_message', (data) => {
@@ -103,9 +100,7 @@ io.on('connection', (socket) => {
 
     if (room.clients.size === 1) {
       io.to(roomKey).emit('room_destroy');
-      room.history = [];
     }
-    broadcastPeerState(roomKey);
   });
 });
 
