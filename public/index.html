@@ -11,7 +11,7 @@
       height: 100vh;
       background: #0a0a0a;
       color: #00ff41;
-      font-family: 'Courier New', Consolas, monospace;
+      font-family: 'Courier New', Consolas, Monaco, monospace;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -282,7 +282,6 @@
       input.placeholder = '信道已断开';
     });
 
-    // 对方上线，重建信道，新增提示文字
     socket.on('peer_online', () => {
       destroyed = false;
       chatBox.innerHTML = '';
