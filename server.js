@@ -1,113 +1,54 @@
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io');
+const { Server } = require("socket.io");
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" }
-});
+// è‡ªåŠ¨è¯»å–äº‘å¹³å°PORTï¼Œè…¾è®¯äº‘ä¼šåˆ†é…80ï¼›æœ¬åœ°è¿è¡Œ fallback 3000
+const PORT = process.env.PORT || 3000;
 
+const server = http.createServer(app);
+const io = new Server(server);
+
+// æ‰˜ç®¡é™æ€ç½‘é¡µï¼Œpublicæ–‡ä»¶å¤¹ä¸‹index.html
 app.use(express.static('public'));
 
-// ·¿¼äÏûÏ¢ÁÙÊ±´æ´¢£¨½öÄÚ´æ£©
-const roomHistory = new Map();
-// µ¥ÈË·¿¼äÏú»Ù¶¨Ê±Æ÷
-const roomTimers = new Map();
-// ·¿¼ä×î´óÈËÊý
-const MAX_ROOM_SIZE = 2;
+// æˆ¿é—´æ¶ˆæ¯å­˜å‚¨
+const rooms = {};
 
 io.on('connection', (socket) => {
-  // ¼ÓÈë·¿¼ä
-  socket.on('join_room', (roomCode) => {
-    const roomObj = io.sockets.adapter.rooms.get(roomCode);
-    const currentSize = roomObj ? roomObj.size : 0;
+    console.log('æœ‰ç”¨æˆ·è¿žæŽ¥ï¼š', socket.id);
 
-    // ·¿¼äÂúÔ±£¬¾Ü¾ø½øÈë
-    if (currentSize >= MAX_ROOM_SIZE) {
-      socket.emit('room_full');
-      return;
-    }
-
-    socket.join(roomCode);
-    socket.currentRoom = roomCode;
-
-    // È¡Ïû´ýÏú»Ù¶¨Ê±Æ÷£¨ÈË»ØÀ´ÁË£©
-    if (roomTimers.has(roomCode)) {
-      clearTimeout(roomTimers.get(roomCode));
-      roomTimers.delete(roomCode);
-    }
-
-    // ·¢ËÍÀúÊ·ÏûÏ¢¸øÐÂ½øÈëµÄÈË
-    if (roomHistory.has(roomCode)) {
-      socket.emit('room_history', roomHistory.get(roomCode));
-    }
-  });
-
-  // ½ÓÊÕ²¢×ª·¢¼ÓÃÜÏûÏ¢£¬´æÈëÁÙÊ±ÀúÊ·
-  socket.on('send_message', (data) => {
-    if (!roomHistory.has(data.room)) {
-      roomHistory.set(data.room, []);
-    }
-    roomHistory.get(data.room).push({
-      msgId: data.msgId,
-      sender: data.sender,
-      encrypted: data.encrypted
+    // åŠ å…¥æˆ¿é—´
+    socket.on('joinRoom', (roomId) => {
+        socket.join(roomId);
+        if (!rooms[roomId]) {
+            rooms[roomId] = [];
+        }
+        socket.emit('history', rooms[roomId]);
     });
 
-    io.to(data.room).emit('receive_message', {
-      msgId: data.msgId,
-      sender: data.sender,
-      encrypted: data.encrypted
+    // æ”¶åˆ°æ¶ˆæ¯ï¼Œå¹¿æ’­ç»™åŒæˆ¿é—´æ‰€æœ‰äºº
+    socket.on('chatMsg', (data) => {
+        const roomId = data.room;
+        const msg = {
+            name: data.name,
+            text: data.text,
+            time: new Date().toLocaleString()
+        };
+        if (!rooms[roomId]) rooms[roomId] = [];
+        rooms[roomId].push(msg);
+        // åªä¿ç•™æœ€è¿‘50æ¡æ¶ˆæ¯ï¼Œé˜²æ­¢å†…å­˜è¶Šç§¯è¶Šå¤§
+        if (rooms[roomId].length > 50) {
+            rooms[roomId].shift();
+        }
+        io.to(roomId).emit('newMsg', msg);
     });
-  });
 
-  // ×ª·¢ÒÑ¶Á»ØÖ´
-  socket.on('read_receipt', (data) => {
-    io.to(data.room).emit('message_read', data.msgId);
-  });
-
-  // ×ª·¢ÕýÔÚÊäÈë×´Ì¬
-  socket.on('typing', (data) => {
-    socket.to(data.room).emit('user_typing', data.sender);
-  });
-
-  // ×ª·¢Í£Ö¹ÊäÈë×´Ì¬
-  socket.on('stop_typing', (data) => {
-    socket.to(data.room).emit('user_stop_typing', data.sender);
-  });
-
-  // ¶Ï¿ªÁ¬½Ó£º·ÖÄ£Ê½´¦Àí
-  socket.on('disconnect', () => {
-    const room = socket.currentRoom;
-    if (!room) return;
-
-    const roomObj = io.sockets.adapter.rooms.get(room);
-    const remaining = roomObj ? roomObj.size : 0;
-
-    // Çé¿ö1£º»¹Ê£1ÈË ¡ú ¸Õ²ÅÊÇË«ÈËÁÄÌì£¬ÓÐÈËÍË³ö£¬Á¢¼´È«·¿Ïú»Ù
-    if (remaining === 1) {
-      io.to(room).emit('room_destroy');
-      roomHistory.delete(room);
-      if (roomTimers.has(room)) {
-        clearTimeout(roomTimers.get(room));
-        roomTimers.delete(room);
-      }
-      return;
-    }
-
-    // Çé¿ö2£ºÃ»ÈËÁË ¡ú ¸Õ²ÅÊÇµ¥ÈËµÈ´ý£¬30Ãëºó³¹µ×Çå¿Õ
-    if (remaining === 0) {
-      const timer = setTimeout(() => {
-        roomHistory.delete(room);
-        roomTimers.delete(room);
-      }, 30000);
-      roomTimers.set(room, timer);
-    }
-  });
+    socket.on('disconnect', () => {
+        console.log('ç”¨æˆ·ç¦»å¼€ï¼š', socket.id);
+    });
 });
 
-const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`·þÎñÔËÐÐÔÚ¶Ë¿Ú ${PORT}`);
+    console.log(`ç›‘å¬ç«¯å£ ${PORT}`);
 });
