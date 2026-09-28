@@ -15,17 +15,21 @@ app.get('/healthz', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 const FIXED_ROOM = "default_room_001";
-const roomHistory = new Map();
+let roomHistory = [];
 const onlineClients = new Set();
 const MAX_ROOM_SIZE = 2;
+
+// 广播当前在线状态，检查是否凑齐双人
+function broadcastPeerState() {
+  if(onlineClients.size === 2) {
+    io.to(FIXED_ROOM).emit('peer_online');
+  }
+}
 
 io.on('connection', (socket) => {
   console.log('新连接：', socket.id);
 
   socket.on('auto_join', () => {
-    const roomObj = io.sockets.adapter.rooms.get(FIXED_ROOM);
-    const currentSize = roomObj ? roomObj.size : 0;
-
     if (onlineClients.size >= MAX_ROOM_SIZE) {
       socket.emit('room_full');
       console.log(`拒绝${socket.id}，当前在线${onlineClients.size}`);
@@ -36,21 +40,16 @@ io.on('connection', (socket) => {
     onlineClients.add(socket.id);
     console.log(`${socket.id}加入房间，在线：`, onlineClients.size);
 
-    if (roomHistory.has(FIXED_ROOM)) {
-      socket.emit('room_history', roomHistory.get(FIXED_ROOM));
-    }
+    // 如果刚好两个人，通知双方可以开始聊天
+    broadcastPeerState();
   });
 
   socket.on('send_message', (data) => {
-    if (!roomHistory.has(data.room)) {
-      roomHistory.set(data.room, []);
-    }
-    roomHistory.get(data.room).push({
+    roomHistory.push({
       msgId: data.msgId,
       sender: data.sender,
       encrypted: data.encrypted
     });
-    // =========这里是修复点！socket.to 不会把消息发回给自己=========
     socket.to(data.room).emit('receive_message', {
       msgId: data.msgId,
       sender: data.sender,
@@ -76,10 +75,17 @@ io.on('connection', (socket) => {
     onlineClients.delete(socket.id);
     console.log(`${socket.id}离开房间，在线：`, onlineClients.size);
 
+    // 还有1个人在线 → 触发销毁
     if (onlineClients.size === 1) {
       io.to(room).emit('room_destroy');
-      roomHistory.delete(room);
+      roomHistory = [];
     }
+    // 全部离线，清空历史
+    if(onlineClients.size === 0){
+      roomHistory = [];
+    }
+    // 重新广播在线状态
+    broadcastPeerState();
   });
 });
 
