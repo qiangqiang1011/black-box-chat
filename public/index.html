@@ -19,69 +19,24 @@
       user-select: none;
     }
 
-    /* 暗号进入层 */
-    #entry-modal {
+    #full-modal {
       position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: #0a0a0a;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 999;
-      padding: 0 30px;
+      top:0;left:0;
+      width:100%;height:100%;
+      background:#0a0a0a;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:999;
+      padding:20px;
+      text-align:center;
     }
-    #entry-modal .title {
-      font-size: 20px;
-      letter-spacing: 3px;
-      margin-bottom: 30px;
-      font-weight: bold;
+    .full-text{
+      color:#ff4444;
+      font-size:18px;
+      letter-spacing:2px;
     }
-    #entry-modal .tip {
-      font-size: 12px;
-      opacity: 0.5;
-      margin-bottom: 20px;
-    }
-    #entry-modal .error {
-      color: #ff4444;
-      font-size: 12px;
-      margin-bottom: 15px;
-      opacity: 0.8;
-    }
-    #code-input {
-      width: 100%;
-      max-width: 300px;
-      background: #000;
-      border: 1px solid #00ff4166;
-      color: #00ff41;
-      padding: 12px 16px;
-      border-radius: 4px;
-      font-size: 15px;
-      outline: none;
-      font-family: inherit;
-      text-align: center;
-      letter-spacing: 2px;
-      margin-bottom: 15px;
-    }
-    #code-input:focus { border-color: #00ff41; }
-    #enter-btn {
-      width: 100%;
-      max-width: 300px;
-      padding: 12px;
-      background: transparent;
-      border: 1px solid #00ff41;
-      color: #00ff41;
-      border-radius: 4px;
-      font-size: 15px;
-      cursor: pointer;
-      font-family: inherit;
-      letter-spacing: 2px;
-      transition: 0.2s;
-    }
-    #enter-btn:active { background: #00ff4122; }
 
-    /* 聊天头部 */
     .header {
       padding: 12px 15px;
       background: #0f0f0f;
@@ -106,7 +61,6 @@
       opacity: 0.8;
     }
 
-    /* 正在输入提示 */
     .typing-tip {
       font-size: 11px;
       color: #00ff41;
@@ -131,7 +85,6 @@
     #chat-box::-webkit-scrollbar { width: 4px; }
     #chat-box::-webkit-scrollbar-thumb { background: #00ff4133; border-radius: 2px; }
 
-    /* 销毁提示 */
     .destroy-tip {
       text-align: center;
       color: #ff4444;
@@ -141,7 +94,6 @@
       letter-spacing: 1px;
     }
 
-    /* 消息气泡 */
     .row {
       display: flex;
       margin-bottom: 12px;
@@ -193,7 +145,6 @@
       opacity: 0.9;
     }
 
-    /* 底部输入区 */
     #input-area {
       padding: 12px 15px;
       background: #0f0f0f;
@@ -230,34 +181,26 @@
     }
     button:active { background: #00ff4122; }
 
-    /* 禁止打印 */
     @media print {
       body { display: none !important; }
     }
   </style>
 </head>
 <body>
-  <!-- 暗号进入层 -->
-  <div id="entry-modal">
-    <div class="title">黑盒信道</div>
-    <div class="tip">请输入约定暗号进入房间</div>
-    <div class="error" id="entry-error" style="display:none;">房间已满，仅支持双人</div>
-    <input type="password" id="code-input" placeholder="输入暗号..." maxlength="20">
-    <button id="enter-btn">进入信道</button>
+  <div id="full-modal" style="display:none;">
+    <div class="full-text">房间占用<br/>当前最多2人同时在线</div>
   </div>
 
-  <!-- 聊天界面 默认隐藏 -->
-  <div class="header" style="display:none;">
+  <div class="header">
     <div>黑盒信道</div>
     <div class="tip">端到端加密 · 双人即毁</div>
     <div class="status" id="connect-status" style="display:none;">连接已断开</div>
   </div>
 
   <div class="typing-tip" id="typing-tip"></div>
+  <div id="chat-box"></div>
 
-  <div id="chat-box" style="display:none;"></div>
-
-  <div id="input-area" style="display:none;">
+  <div id="input-area">
     <input type="text" id="msg-input" placeholder="输入消息..." maxlength="200" />
     <button onclick="sendMessage()">发送</button>
   </div>
@@ -267,46 +210,44 @@
     const socket = io();
     const chatBox = document.getElementById('chat-box');
     const input = document.getElementById('msg-input');
-    const entryModal = document.getElementById('entry-modal');
-    const codeInput = document.getElementById('code-input');
-    const enterBtn = document.getElementById('enter-btn');
-    const entryError = document.getElementById('entry-error');
-    const header = document.querySelector('.header');
-    const inputArea = document.getElementById('input-area');
     const connectStatus = document.getElementById('connect-status');
     const typingTip = document.getElementById('typing-tip');
+    const fullModal = document.getElementById('full-modal');
+
+    const ROOM_ID = "default_room_001";
+    const ENCRYPT_SECRET = "default_room_001";
 
     const me = 'u_' + Math.floor(Math.random() * 100000);
-    let currentRoom = '';
     let destroyed = false;
     let typingTimer = null;
 
-    // ===== 防泄露防护 =====
     document.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('copy', e => e.preventDefault());
     document.addEventListener('selectstart', e => e.preventDefault());
     window.addEventListener('blur', () => {
-      if (currentRoom && !destroyed) chatBox.classList.add('blur');
+      if (!destroyed) chatBox.classList.add('blur');
     });
     window.addEventListener('focus', () => {
       chatBox.classList.remove('blur');
     });
 
-    // ===== 连接状态提示 =====
     socket.on('disconnect', () => {
-      if (currentRoom && !destroyed) {
+      if (!destroyed) {
         connectStatus.style.display = 'block';
       }
       hideTyping();
     });
     socket.on('connect', () => {
       connectStatus.style.display = 'none';
-      if (currentRoom && !destroyed) {
-        socket.emit('join_room', currentRoom);
+      if (!destroyed) {
+        socket.emit('auto_join');
       }
     });
 
-    // ===== AES加密解密工具 =====
+    socket.on('room_full', () => {
+      fullModal.style.display = 'flex';
+    });
+
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
     async function getKey(secret) {
@@ -334,62 +275,49 @@
       }
     }
 
-    // ===== 进入房间 =====
-    function enterRoom() {
-      const code = codeInput.value.trim();
-      if (!code) {
-        alert('请输入暗号');
-        return;
+    socket.on('room_history', async (history) => {
+      chatBox.innerHTML = '';
+      for (const item of history) {
+        const text = await decrypt(item.encrypted, ENCRYPT_SECRET);
+        addMessage(text, item.sender === me, item.msgId, false, false);
       }
-      entryError.style.display = 'none';
-      currentRoom = code;
-      socket.emit('join_room', code);
-    }
-    enterBtn.addEventListener('click', enterRoom);
-    codeInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') enterRoom();
+      chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    // 房间满员提示
-    socket.on('room_full', () => {
-      entryError.style.display = 'block';
+    socket.on('room_destroy', () => {
+      if (destroyed) return;
+      destroyed = true;
+      if (typingTimer) clearTimeout(typingTimer);
+      hideTyping();
+      chatBox.innerHTML = '';
+      const tip = document.createElement('div');
+      tip.className = 'destroy-tip';
+      tip.textContent = '— 对方已退出，记录已销毁 —';
+      chatBox.appendChild(tip);
+      input.disabled = true;
+      input.value = '';
+      input.placeholder = '信道已断开';
     });
 
-    // 收到历史消息 = 进入成功，显示聊天界面
-    socket.on('room_history', () => {
-      if (entryModal.style.display !== 'none') {
-        showChatInterface();
-      }
+    socket.on('message_read', (msgId) => {
+      const mark = document.querySelector(`[data-msg-id="${msgId}"] .read-mark`);
+      if (mark) mark.textContent = '已读';
     });
 
-    // 空房间进入成功也显示界面
-    socket.on('connect', () => {
-      if (currentRoom && entryModal.style.display !== 'none' && !destroyed) {
-        setTimeout(() => {
-          if (entryError.style.display !== 'block') {
-            showChatInterface();
-          }
-        }, 300);
-      }
+    socket.on('receive_message', async (data) => {
+      if (data.sender === me) return;
+      const text = await decrypt(data.encrypted, ENCRYPT_SECRET);
+      addMessage(text, false, data.msgId);
+      socket.emit('read_receipt', { room: ROOM_ID, msgId: data.msgId });
     });
 
-    function showChatInterface() {
-      entryModal.style.display = 'none';
-      header.style.display = 'block';
-      typingTip.style.display = 'block';
-      chatBox.style.display = 'block';
-      inputArea.style.display = 'flex';
-      input.focus();
-    }
-
-    // ===== 正在输入逻辑 =====
     function sendTyping() {
-      if (!currentRoom || destroyed) return;
-      socket.emit('typing', { room: currentRoom, sender: me });
+      if (destroyed) return;
+      socket.emit('typing', { room: ROOM_ID, sender: me });
     }
     function sendStopTyping() {
-      if (!currentRoom || destroyed) return;
-      socket.emit('stop_typing', { room: currentRoom, sender: me });
+      if (destroyed) return;
+      socket.emit('stop_typing', { room: ROOM_ID, sender: me });
     }
     function showTyping() {
       typingTip.classList.add('show');
@@ -408,63 +336,14 @@
       }, 1000);
     });
 
-    socket.on('user_typing', (sender) => {
-      if (sender !== me && !destroyed) showTyping();
-    });
-    socket.on('user_stop_typing', (sender) => {
-      if (sender !== me) hideTyping();
-    });
-
-    // ===== 加载历史消息 =====
-    socket.on('room_history', async (history) => {
-      chatBox.innerHTML = '';
-      for (const item of history) {
-        const text = await decrypt(item.encrypted, currentRoom);
-        addMessage(text, item.sender === me, item.msgId, false, false);
-      }
-      chatBox.scrollTop = chatBox.scrollHeight;
-    });
-
-    // ===== 房间销毁 =====
-    socket.on('room_destroy', () => {
-      if (destroyed) return;
-      destroyed = true;
-      if (typingTimer) clearTimeout(typingTimer);
-      hideTyping();
-      chatBox.innerHTML = '';
-      const tip = document.createElement('div');
-      tip.className = 'destroy-tip';
-      tip.textContent = '— 对方已退出，记录已销毁 —';
-      chatBox.appendChild(tip);
-      input.disabled = true;
-      input.value = '';
-      input.placeholder = '信道已断开';
-    });
-
-    // ===== 已读回执 =====
-    socket.on('message_read', (msgId) => {
-      const mark = document.querySelector(`[data-msg-id="${msgId}"] .read-mark`);
-      if (mark) mark.textContent = '已读';
-    });
-
-    // ===== 收到消息 =====
-    socket.on('receive_message', async (data) => {
-      if (data.sender === me) return;
-      const text = await decrypt(data.encrypted, currentRoom);
-      addMessage(text, false, data.msgId);
-      socket.emit('read_receipt', { room: currentRoom, msgId: data.msgId });
-    });
-
-    // ===== 发送消息 =====
     async function sendMessage() {
       const text = input.value.trim();
-      if (!text || !currentRoom || input.disabled) return;
+      if (!text || input.disabled) return;
       const msgId = Date.now() + '_' + Math.floor(Math.random() * 1000);
 
       if (typingTimer) clearTimeout(typingTimer);
       sendStopTyping();
 
-      // 断网标记发送失败
       if (!socket.connected) {
         addMessage(text, true, msgId, true, true);
         input.value = '';
@@ -472,9 +351,9 @@
         return;
       }
 
-      const encrypted = await encrypt(text, currentRoom);
+      const encrypted = await encrypt(text, ENCRYPT_SECRET);
       socket.emit('send_message', {
-        room: currentRoom,
+        room: ROOM_ID,
         msgId: msgId,
         sender: me,
         encrypted: encrypted
@@ -485,7 +364,6 @@
       input.focus();
     }
 
-    // ===== 渲染消息 =====
     function addMessage(text, isMe, msgId, scroll = true, isFail = false) {
       const row = document.createElement('div');
       row.className = 'row ' + (isMe ? 'right' : 'left');
@@ -515,7 +393,6 @@
       if (scroll) chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // 回车发送
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') sendMessage();
     });
