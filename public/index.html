@@ -2,448 +2,693 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>黑盒信道</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>私密空间</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      width: 100%;
       height: 100vh;
-      background: #0a0a0a;
-      color: #00ff41;
-      font-family: 'Courier New', Consolas, Monaco, monospace;
       display: flex;
       flex-direction: column;
+      background: radial-gradient(circle at top, #141a2b 0%, #090c14 48%, #07080d 100%);
+      color: #d8deea;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
       overflow: hidden;
-      -webkit-user-select: none;
       user-select: none;
-    }
-    #room-modal {
-      position: fixed;
-      top:0;left:0;
-      width:100%;height:100%;
-      background:#0a0a0a;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      z-index:9999;
-    }
-    #full-modal {
-      position: fixed;
-      top:0;left:0;
-      width:100%;height:100%;
-      background:#0a0a0a;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      z-index:999;
-      padding:20px;
-      text-align:center;
-    }
-    .full-text{
-      color:#ff4444;
-      font-size:18px;
-      letter-spacing:2px;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .header {
-      padding: 12px 15px;
-      background: #0f0f0f;
-      border-bottom: 1px solid #00ff4133;
+    /* 房间列表 */
+    #roomPanel {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at top, #141a2b 0%, #090c14 48%, #07080d 100%);
+      padding: 30px 18px 32px;
+      overflow-y: auto;
+      z-index: 20;
+    }
+
+    .panel-title {
       text-align: center;
-      letter-spacing: 2px;
-      font-size: 15px;
-      font-weight: bold;
-      flex-shrink: 0;
-    }
-    .header .tip {
-      font-size: 10px;
-      opacity: 0.5;
-      margin-top: 3px;
-      letter-spacing:1px;
-      font-weight: normal;
-    }
-    .header .status {
-      font-size: 10px;
-      color: #ff4444;
-      margin-top: 2px;
-      opacity:0.8;
-      display:none;
+      font-size: 16px;
+      letter-spacing: 6px;
+      color: #c0cbe2;
+      margin-bottom: 6px;
+      font-weight: 500;
     }
 
-    .typing-tip {
+    .panel-subtitle {
+      text-align: center;
       font-size: 11px;
-      color: #00ff41;
-      opacity: 0.7;
-      padding:4px 15px;
-      background: #0f0f0f;
-      text-align:center;
-      flex-shrink:0;
-      height:0;
-      overflow:hidden;
-      transition: height 0.2s;
+      color: #4a5468;
+      margin-bottom: 26px;
+      letter-spacing: 2px;
     }
-    .typing-tip.show { height:22px; }
 
-    #chat-box {
-      flex:1;
-      padding:15px;
-      overflow-y:auto;
-      transition: filter 0.2s;
+    .room-item {
+      max-width: 520px;
+      margin: 10px auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 16px 18px;
+      transition: border-color 0.25s ease, transform 0.2s ease;
     }
-    #chat-box.blur { filter: blur(12px); }
-    #chat-box::-webkit-scrollbar { width:4px; }
-    #chat-box::-webkit-scrollbar-thumb { background:#00ff4133; border-radius:2px; }
 
-    .destroy-tip {
-      text-align:center;
-      color:#ff4444;
-      font-size:13px;
-      margin-top:20px;
-      opacity:0.8;
-      letter-spacing:1px;
+    .room-item:active {
+      transform: scale(0.985);
     }
-    .rebuild-tip {
+
+    .room-item.room-full {
+      border-color: rgba(240, 80, 80, 0.18);
+      background: linear-gradient(135deg, rgba(240, 80, 80, 0.06), rgba(240, 80, 80, 0.02));
+    }
+
+    .room-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .room-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #1f2a44, #121826);
+      border: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 600;
+      color: #c7d2ea;
+      letter-spacing: 1px;
+    }
+
+    .room-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .room-name {
+      font-size: 14px;
+      color: #e6ecf7;
+    }
+
+    .room-desc {
+      font-size: 11px;
+      color: #5d6780;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #34d399;
+      box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
+      margin-right: 8px;
+    }
+
+    .status-dot.full {
+      background: #f87171;
+      box-shadow: 0 0 10px rgba(248, 113, 113, 0.5);
+    }
+
+    .room-status {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      color: #7f8aa3;
+    }
+
+    .enter-btn {
+      border: 1px solid rgba(120, 180, 255, 0.25);
+      background: linear-gradient(135deg, rgba(90, 140, 255, 0.12), rgba(90, 140, 255, 0.04));
+      color: #9cb8ff;
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-size: 12px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.25s ease;
+    }
+
+    .enter-btn:hover {
+      border-color: rgba(120, 180, 255, 0.45);
+      background: linear-gradient(135deg, rgba(90, 140, 255, 0.2), rgba(90, 140, 255, 0.08));
+    }
+
+    .enter-btn:disabled {
+      border-color: rgba(255,255,255,0.06);
+      background: transparent;
+      color: #4a5468;
+      cursor: not-allowed;
+    }
+
+    /* 房间页底部免责提示 */
+    .disclaimer {
+      font-size:11px;
+      color:#4a5468;
       text-align:center;
-      color:#00ff41;
-      font-size:13px;
-      margin-top:20px;
-      opacity:0.8;
-      letter-spacing:1px;
+      padding:20px 12px 12px;
+      line-height:1.5;
+    }
+
+    /* 顶部导航 */
+    .nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      background: rgba(7, 8, 13, 0.6);
+      backdrop-filter: blur(10px);
+      position: relative;
+      z-index: 10;
+    }
+
+    .nav-title {
+      font-size: 12px;
+      letter-spacing: 3px;
+      color: #7f8aa3;
+    }
+
+    .nav-room {
+      font-size: 14px;
+      color: #e6ecf7;
+      font-weight: 600;
+    }
+
+    .nav-status {
+      display: flex;
+      align-items: center;
+      font-size: 11px;
+      color: #7f8aa3;
+    }
+
+    .status-dot-nav {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #f5c542;
+      box-shadow: 0 0 10px rgba(245, 197, 66, 0.5);
+      margin-right: 8px;
+    }
+
+    .status-dot-nav.online {
+      background: #34d399;
+      box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
+    }
+
+    .back-btn {
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      color: #9ca6bd;
+      padding: 7px 12px;
+      border-radius: 10px;
+      font-size: 11px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* 聊天区 */
+    #chat {
+      flex: 1;
+      padding: 18px 16px 14px;
+      overflow-y: auto;
+    }
+
+    .tip-card {
+      max-width: 72%;
+      margin: 18px auto;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+      border: 1px solid rgba(255,255,255,0.06);
+      text-align: center;
+    }
+
+    .tip-title {
+      font-size: 13px;
+      color: #e6ecf7;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .tip-desc {
+      font-size: 11px;
+      color: #5d6780;
     }
 
     .row {
-      display:flex;
-      margin-bottom:12px;
-      align-items:flex-end;
+      display: flex;
+      margin-bottom: 14px;
     }
-    .row.left { justify-content:flex-start; }
-    .row.right { justify-content:flex-end; }
-    .bubble-wrap {
-      max-width:78%;
-      display:flex;
-      flex-direction:column;
+
+    .row.l {
+      justify-content: flex-start;
     }
+
+    .row.r {
+      justify-content: flex-end;
+    }
+
     .bubble {
-      padding:10px 14px;
-      font-size:14px;
-      line-height:1.45;
-      word-wrap:break-word;
-      border-radius:14px;
-    }
-    .row.left .bubble {
-      background: rgba(0,255,65,0.1);
-      color:#00ff41;
-      border:1px solid rgba(0,255,65,0.33);
-      border-bottom-left-radius:4px;
-    }
-    .row.right .bubble {
-      background: rgba(0,255,255,0.1);
-      color:#00ffff;
-      border:1px solid rgba(0,255,255,0.33);
-      border-bottom-right-radius:4px;
-    }
-    .row.right .bubble.fail {
-      background:rgba(255,68,68,0.1);
-      color:#ff4444;
-      border-color:rgba(255,68,68,0.33);
-    }
-    .read-mark {
-      font-size:10px;
-      opacity:0.5;
-      margin-top:3px;
-      padding-right:4px;
-    }
-    .fail-mark {
-      font-size:10px;
-      color:#ff4444;
-      margin-top:3px;
-      padding-right:4px;
-      opacity:0.9;
+      max-width: 74%;
+      padding: 11px 14px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-wrap: break-word;
+      white-space: pre-wrap;
     }
 
-    #input-area {
-      padding:12px 15px;
-      background:#0f0f0f;
-      border-top:1px solid #00ff4133;
-      display:flex;
-      gap:10px;
-      padding-bottom: calc(28px + env(safe-area-inset-bottom));
-      flex-shrink:0;
+    .l .bubble {
+      background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.06);
+      color: #d8deea;
+      border-top-left-radius: 6px;
     }
-    #msg-input {
-      flex:1;
-      background:#000;
-      border:1px solid #00ff4166;
-      color:#00ff41;
-      padding:10px 14px;
-      border-radius:20px;
-      font-size:14px;
-      outline:none;
+
+    .r .bubble {
+      background: linear-gradient(135deg, #2f4472, #203157);
+      border: 1px solid rgba(120, 180, 255, 0.18);
+      color: #eaf1ff;
+      border-top-right-radius: 6px;
+      box-shadow: 0 4px 18px rgba(32, 49, 87, 0.45);
+    }
+
+    /* 输入区 */
+    #inputBox {
+      display: flex;
+      gap: 10px;
+      padding: 12px 14px 16px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      background: rgba(7, 8, 13, 0.6);
+    }
+
+    #txt {
+      flex: 1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      color: #e6ecf7;
+      padding: 12px 14px;
+      border-radius: 20px;
+      outline: none;
+      font-size: 14px;
       font-family: inherit;
-      -webkit-user-select:text;
-      user-select:text;
     }
-    #msg-input:focus { border-color:#00ff41; }
-    button {
-      padding:0 18px;
-      background:transparent;
-      border:1px solid #00ff41;
-      color:#00ff41;
-      border-radius:20px;
-      font-size:14px;
-      cursor:pointer;
-      font-family:inherit;
-      transition:0.15s;
-    }
-    button:active { background:rgba(0,255,65,0.2); }
 
-    /* 密钥弹窗样式 */
-    #roomkey-input{
-      background:#000;
-      border:1px solid #00ff4166;
-      color:#00ff41;
-      padding:10px;
-      border-radius:8px;
-      font-size:16px;
-      width:240px;
-      outline:none;
-      margin-bottom:15px;
+    #txt::placeholder {
+      color: #4a5468;
     }
-    #roomkey-input:focus{
-      border-color:#00ff41;
+
+    #txt:disabled {
+      opacity: 0.4;
     }
-    #roomkey-tip{
-      color:#ff4444;
-      font-size:12px;
-      margin-top:10px;
-      display:none;
+
+    #send {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #4f78d1, #3657a8);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 20px rgba(54, 87, 168, 0.45);
+    }
+
+    #send:disabled {
+      background: rgba(255,255,255,0.06);
+      color: #4a5468;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    .send-icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* 滚动条 */
+    #chat::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #chat::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.08);
+      border-radius: 4px;
     }
   </style>
 </head>
 <body>
-<div id="room-modal">
-  <div style="text-align:center;">
-    <div style="color:#00ff41;font-size:16px;margin-bottom:12px;">输入房间密钥</div>
-    <input id="roomkey-input" type="text" placeholder="输入密钥">
-    <br>
-    <button onclick="enterRoom()">确认进入</button>
-    <div id="roomkey-tip">房间已满</div>
+
+  <!-- 房间列表 -->
+  <div id="roomPanel">
+    <div class="panel-title">私密空间</div>
+    <div class="panel-subtitle">PRIVATE SPACE · 8 ROOMS · E2EE</div>
+    <div id="list"></div>
+    <!-- 仅房间选择页显示免责 -->
+    <div class="disclaimer">
+      本服务不会保存聊天记录，退出即销毁！所有消息采用端到端加密，服务器无法读取内容。
+    </div>
   </div>
-</div>
 
-<div id="full-modal">
-  <div class="full-text">房间占用<br/>当前最多2人同时在线</div>
-</div>
+  <!-- 聊天界面 -->
+  <div class="nav-bar">
+    <button class="back-btn" id="backBtn">返回</button>
+    <div>
+      <div class="nav-title">当前房间</div>
+      <div class="nav-room" id="navRoom">—</div>
+    </div>
+    <div class="nav-status" id="navStatus">
+      <span class="status-dot-nav" id="navDot"></span>
+      <span id="navStatusText">等待中</span>
+    </div>
+  </div>
 
-<div class="header">
-  <div>黑盒信道</div>
-  <div class="tip">端到端加密 · 双人房间</div>
-  <div class="status" id="connect-status">连接已断开</div>
-</div>
+  <div id="chat"></div>
 
-<div class="typing-tip" id="typing-tip"></div>
-<div id="chat-box"></div>
+  <div id="inputBox">
+    <input id="txt" placeholder="等待对方接入..." maxlength="500" />
+    <button id="send" disabled>
+      <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>
+  </div>
 
-<div id="input-area">
-  <input type="text" id="msg-input" placeholder="输入消息..." maxlength="200" onkeydown="if(event.key==='Enter')sendMessage()">
-  <button onclick="sendMessage()">发送</button>
-</div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io({
+      transports: ['websocket', 'polling']
+    });
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-const socket = io();
-const chatBox = document.getElementById('chat-box');
-const input = document.getElementById('msg-input');
-const connectStatus = document.getElementById('connect-status');
-const typingTip = document.getElementById('typing-tip');
-const roomModal = document.getElementById('room-modal');
-const roomkeyTip = document.getElementById('roomkey-tip');
+    const roomPanel = document.getElementById('roomPanel');
+    const listWrap = document.getElementById('list');
+    const chat = document.getElementById('chat');
+    const txt = document.getElementById('txt');
+    const sendBtn = document.getElementById('send');
+    const backBtn = document.getElementById('backBtn');
+    const navRoom = document.getElementById('navRoom');
+    const navStatusText = document.getElementById('navStatusText');
+    const navDot = document.getElementById('navDot');
 
-let roomKey = "";
-let enteredRoom = false;
-let joining = false;
-let isInRoom = false;
+    let inRoom = false;
+    let sharedKey = null;
+    let myPublicKey = null;
 
-let me = 'u_' + Math.floor(Math.random()*1000000);
-let destroyed = true;
-let typingTimer = null;
+    // ========== E2EE 加密工具 AES-GCM ==========
+    async function genKeyPair() {
+      const keyPair = await window.crypto.subtle.generateKey(
+        { name: "ECDH", namedCurve: "P-256" },
+        true,
+        ["deriveKey"]
+      );
+      const pubRaw = await window.crypto.subtle.exportKey("raw", keyPair.publicKey);
+      return { keyPair, pubRaw: btoa(String.fromCharCode(...new Uint8Array(pubRaw))) };
+    }
 
-function enterRoom(){
-  const val = document.getElementById('roomkey-input').value.trim();
-  if(!val || joining) return;
-  roomKey = val;
-  enteredRoom = true;
-  joining = true;
-  socket.emit('auto_join', roomKey);
-  roomModal.style.display = 'none';
-  destroyed = true;
-  isInRoom = true;
-  chatBox.innerHTML = '';
-  const tip = document.createElement('div');
-  tip.className = 'destroy-tip';
-  tip.textContent = '✅ 房间已创建，等待其他人使用相同密钥接入';
-  chatBox.appendChild(tip);
-  input.disabled = true;
-  input.placeholder = '等待对方上线...';
-  setTimeout(()=>{joining=false;}, 800);
-}
+    async function deriveSharedKey(keyPair, remotePubB64) {
+      const remoteRaw = Uint8Array.from(atob(remotePubB64), c => c.charCodeAt(0));
+      const remotePub = await window.crypto.subtle.importKey(
+        "raw", remoteRaw, { name: "ECDH", namedCurve: "P-256" }, false, []
+      );
+      const aesKey = await window.crypto.subtle.deriveKey(
+        { name: "ECDH", public: remotePub },
+        keyPair.privateKey,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+      );
+      return aesKey;
+    }
 
-socket.on('disconnect', () => {
-  connectStatus.style.display = 'block';
-  connectStatus.textContent = '连接断开，正在重连...';
-  hideTyping();
-});
+    async function encryptMsg(plaintext, key) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(plaintext);
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const cipher = await window.crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        key,
+        data
+      );
+      const combined = new Uint8Array(iv.byteLength + cipher.byteLength);
+      combined.set(iv, 0);
+      combined.set(new Uint8Array(cipher), iv.byteLength);
+      return btoa(String.fromCharCode(...combined));
+    }
 
-socket.on('connect', () => {
-  connectStatus.style.display = 'none';
-  // 只有标记进入房间，并且当前不在房间，才重新加入
-  if(enteredRoom && roomKey && !isInRoom){
-    socket.emit('auto_join', roomKey);
-    isInRoom = true;
-  }
-});
+    async function decryptMsg(cipherB64, key) {
+      try {
+        const raw = Uint8Array.from(atob(cipherB64), c => c.charCodeAt(0));
+        const iv = raw.slice(0,12);
+        const ciphertext = raw.slice(12);
+        const plain = await window.crypto.subtle.decrypt(
+          { name: "AES-GCM", iv },
+          key,
+          ciphertext
+        );
+        const decoder = new TextDecoder();
+        return decoder.decode(plain);
+      }catch(e){
+        return "[解密失败]";
+      }
+    }
+    // ===========================================
 
-socket.on('room_full', () => {
-  roomkeyTip.style.display = 'block';
-  setTimeout(()=>{roomkeyTip.style.display='none'},2500);
-  roomModal.style.display = 'flex';
-  enteredRoom = false;
-  isInRoom = false;
-});
+    // 安全渲染房间列表，修复XSS（不用innerHTML拼接内容）
+    function renderDefault() {
+      listWrap.innerHTML = '';
+      for (let i = 1; i <= 8; i++) {
+        const wrap = document.createElement('div');
+        wrap.className = 'room-item';
+        wrap.id = `r${i}`;
 
-socket.on('room_destroy', () => {
-  destroyed = true;
-  if(typingTimer) clearTimeout(typingTimer);
-  hideTyping();
-  chatBox.innerHTML = '';
-  const tip = document.createElement('div');
-  tip.className = 'destroy-tip';
-  tip.textContent = '— 对方已退出，记录已销毁 —';
-  chatBox.appendChild(tip);
-  input.disabled = true;
-  input.value = '';
-  input.placeholder = '等待对方上线...';
-});
+        const leftDiv = document.createElement('div');
+        leftDiv.className = 'room-left';
+        const numBox = document.createElement('div');
+        numBox.className = 'room-number';
+        numBox.textContent = `${i}`;
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'room-meta';
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'room-name';
+        nameDiv.textContent = `房间 ${i}`;
+        const descDiv = document.createElement('div');
+        descDiv.className = 'room-desc';
+        descDiv.textContent = '私密双人信道';
+        metaDiv.appendChild(nameDiv);
+        metaDiv.appendChild(descDiv);
+        leftDiv.appendChild(numBox);
+        leftDiv.appendChild(metaDiv);
 
-socket.on('peer_online', () => {
-  destroyed = false;
-  chatBox.innerHTML = '';
-  const tip = document.createElement('div');
-  tip.className = 'rebuild-tip';
-  tip.textContent = '对方接入成功，信道已建立';
-  chatBox.appendChild(tip);
-  input.disabled = false;
-  input.placeholder = '输入消息...';
-});
+        const rightWrap = document.createElement('div');
+        rightWrap.style.display = "flex";
+        rightWrap.style.alignItems = "center";
+        rightWrap.style.gap = "12px";
 
-socket.on('message_read', (msgId) => {
-  const mark = document.querySelector(`[data-msgid="${msgId}"] .read-mark`);
-  if(mark) mark.textContent = '已读';
-});
+        const statusBox = document.createElement('div');
+        statusBox.className = 'room-status';
+        const dot = document.createElement('span');
+        dot.className = 'status-dot';
+        statusBox.appendChild(dot);
+        const statusText = document.createTextNode("空闲");
+        statusBox.appendChild(statusText);
 
-socket.on('receive_message', async (data) => {
-  if(destroyed) return;
-  const txt = await decrypt(data.encrypted, roomKey);
-  addMessage(txt, false, data.msgId, true);
-});
+        const enterBtn = document.createElement('button');
+        enterBtn.className = 'enter-btn';
+        enterBtn.textContent = "进入";
+        enterBtn.onclick = ()=>joinRoom(i);
 
-socket.on('user_typing', () => {
-  if(destroyed) return;
-  showTyping();
-});
-socket.on('user_stop_typing', () => {
-  hideTyping();
-});
+        rightWrap.appendChild(statusBox);
+        rightWrap.appendChild(enterBtn);
+        wrap.appendChild(leftDiv);
+        wrap.appendChild(rightWrap);
+        listWrap.appendChild(wrap);
+      }
+    }
 
-input.addEventListener('input', ()=>{
-  if(destroyed) return;
-  socket.emit('typing', {room:roomKey, sender:me});
-  clearTimeout(typingTimer);
-  typingTimer = setTimeout(()=>{
-    socket.emit('stop_typing', {room:roomKey, sender:me});
-  },1000);
-});
+    renderDefault();
 
-async function sendMessage() {
-  const text = input.value.trim();
-  if(!text || input.disabled) return;
-  const msgId = Date.now() + '_' + Math.floor(Math.random()*1000000);
-  clearTimeout(typingTimer);
-  socket.emit('stop_typing', {room:roomKey, sender:me});
+    socket.on('room_status', arr => {
+      arr.forEach(v => {
+        const dom = document.getElementById('r' + v.num);
+        if (!dom) return;
+        dom.className = 'room-item ' + (v.full ? 'room-full' : '');
+        const btn = dom.querySelector('button');
+        const statText = dom.querySelector('.room-status');
+        const dot = statText.querySelector('.status-dot');
+        if(v.full){
+          statText.childNodes[1].textContent = "已满";
+          dot.classList.add("full");
+          btn.textContent = "已满";
+          btn.disabled = true;
+          btn.onclick = null;
+        }else{
+          statText.childNodes[1].textContent = "空闲";
+          dot.classList.remove("full");
+          btn.textContent = "进入";
+          btn.disabled = false;
+          btn.onclick = ()=>joinRoom(v.num);
+        }
+      });
+    });
 
-  if(!socket.connected){
-    addMessage(text, true, msgId, true, true);
-    input.value = '';
-    return;
-  }
-  const enc = await encrypt(text, roomKey);
-  socket.emit('send_message', {
-    room:roomKey,
-    msgId:msgId,
-    sender:me,
-    encrypted:enc
-  });
-  addMessage(text, true, msgId, false);
-  input.value = '';
-  scrollBottom();
-}
+    async function joinRoom(num) {
+      socket.emit('join', num);
+    }
 
-function addMessage(text, isMe, msgId, scroll=true, fail=false) {
-  const row = document.createElement('div');
-  row.className = 'row ' + (isMe ? 'right':'left');
-  row.setAttribute('data-msgid',msgId);
-  const wrap = document.createElement('div');
-  wrap.className = 'bubble-wrap';
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble' + (fail ? ' fail':'');
-  bubble.textContent = text;
-  const mark = document.createElement('div');
-  mark.className = fail ? 'fail-mark' : 'read-mark';
-  mark.textContent = fail ? '发送失败' : '';
-  wrap.appendChild(bubble);
-  wrap.appendChild(mark);
-  row.appendChild(wrap);
-  chatBox.appendChild(row);
-  if(scroll) scrollBottom();
-}
-function scrollBottom(){
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-function showTyping(){
-  typingTip.textContent = '对方正在输入...';
-  typingTip.classList.add('show');
-}
-function hideTyping(){
-  typingTip.classList.remove('show');
-}
+    // 返回按钮：完整清空密钥、消息、状态
+    backBtn.addEventListener('click', async () => {
+      sharedKey = null;
+      myPublicKey = null;
+      inRoom = false;
+      chat.innerHTML = '';
+      txt.value = '';
+      txt.disabled = true;
+      sendBtn.disabled = true;
+      roomPanel.style.display = 'block';
+      navRoom.textContent = '—';
+      navStatusText.textContent = '等待中';
+      navDot.classList.remove('online');
+    });
 
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
-async function getKey(secret){
-  const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(secret));
-  return crypto.subtle.importKey('raw', hashBuf, {name:'AES-CBC'}, false, ['encrypt','decrypt']);
-}
-async function encrypt(text, secret){
-  const key = await getKey(secret);
-  const iv = crypto.getRandomValues(new Uint8Array(16));
-  const encBuf = await crypto.subtle.encrypt({name:'AES-CBC', iv}, key, encoder.encode(text));
-  return {
-    iv: btoa(String.fromCharCode(...iv)),
-    data: btoa(String.fromCharCode(...new Uint8Array(encBuf)))
-  };
-}
-async function decrypt(obj, secret){
-  try{
-    const key = await getKey(secret);
-    const iv = Uint8Array.from(atob(obj.iv), c=>c.charCodeAt(0));
-    const data = Uint8Array.from(atob(obj.data), c=>c.charCodeAt(0));
-    const plainBuf = await crypto.subtle.decrypt({name:'AES-CBC', iv}, key, data);
-    return decoder.decode(plainBuf);
-  }catch(e){
-    return '[解密失败]';
-  }
-}
-</script>
+    socket.on('wait', async () => {
+      inRoom = true;
+      roomPanel.style.display = 'none';
+      socket.currentRoom = socket.currentRoom;
+      navRoom.textContent = '房间 ' + socket.currentRoom;
+      navStatusText.textContent = '等待对方';
+      navDot.classList.remove('online');
+      chat.innerHTML = '';
+      const tip = document.createElement('div');
+      tip.className = 'tip-card';
+      const tipTitle = document.createElement('div');
+      tipTitle.className = 'tip-title';
+      tipTitle.textContent = '已进入房间';
+      const tipDesc = document.createElement('div');
+      tipDesc.className = 'tip-desc';
+      tipDesc.textContent = '等待另一个人加入，自动建立加密信道';
+      tip.appendChild(tipTitle);
+      tip.appendChild(tipDesc);
+      chat.appendChild(tip);
+      txt.disabled = true;
+      sendBtn.disabled = true;
+
+      // 生成密钥对，等待交换
+      const kp = await genKeyPair();
+      myPublicKey = kp;
+      socket.emit('key_exchange', { pub: kp.pubRaw });
+    });
+
+    socket.on('online', async () => {
+      inRoom = true;
+      roomPanel.style.display = 'none';
+      navRoom.textContent = '房间 ' + socket.currentRoom;
+      navStatusText.textContent = '已连接(E2EE)';
+      navDot.classList.add('online');
+      chat.innerHTML = '';
+      const tip = document.createElement('div');
+      tip.className = 'tip-card';
+      const tipTitle = document.createElement('div');
+      tipTitle.className = 'tip-title';
+      tipTitle.textContent = '加密信道已建立';
+      const tipDesc = document.createElement('div');
+      tipDesc.className = 'tip-desc';
+      tipDesc.textContent = '端到端加密，服务器无法读取消息';
+      tip.appendChild(tipTitle);
+      tip.appendChild(tipDesc);
+      chat.appendChild(tip);
+      txt.disabled = false;
+      sendBtn.disabled = false;
+      txt.focus();
+    });
+
+    socket.on('key_exchange', async (payload) => {
+      if(!myPublicKey) return;
+      sharedKey = await deriveSharedKey(myPublicKey.keyPair, payload.pub);
+    });
+
+    socket.on('partner_leave', () => {
+      inRoom = false;
+      sharedKey = null;
+      myPublicKey = null;
+      navStatusText.textContent = '等待中';
+      navDot.classList.remove('online');
+      chat.innerHTML = '';
+      const tip = document.createElement('div');
+      tip.className = 'tip-card';
+      const tipTitle = document.createElement('div');
+      tipTitle.className = 'tip-title';
+      tipTitle.textContent = '对方已退出';
+      const tipDesc = document.createElement('div');
+      tipDesc.className = 'tip-desc';
+      tipDesc.textContent = '密钥销毁，聊天记录已销毁';
+      tip.appendChild(tipTitle);
+      tip.appendChild(tipDesc);
+      chat.appendChild(tip);
+      txt.disabled = true;
+      sendBtn.disabled = true;
+    });
+
+    socket.on('recv_cipher', async (cipher) => {
+      if (!inRoom || !sharedKey) return;
+      const plain = await decryptMsg(cipher, sharedKey);
+      addMsg(plain, false);
+    });
+
+    sendBtn.addEventListener('click', async () => {
+      const val = txt.value.trim();
+      if (!val || !inRoom || !sharedKey) return;
+      const cipher = await encryptMsg(val, sharedKey);
+      socket.emit('send_cipher', cipher);
+      addMsg(val, true);
+      txt.value = '';
+      chat.scrollTop = chat.scrollHeight;
+    });
+
+    txt.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
+      }
+    });
+
+    // 安全添加消息（textContent防XSS）
+    function addMsg(text, isMe) {
+      const row = document.createElement('div');
+      row.className = 'row ' + (isMe ? 'r' : 'l');
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = text;
+      row.appendChild(bubble);
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    socket.on('tip', msg => alert(msg));
+
+    // 页面关闭/刷新，强制销毁密钥，清除内存
+    window.addEventListener('beforeunload', () => {
+      sharedKey = null;
+      myPublicKey = null;
+    });
+  </script>
 </body>
 </html>
