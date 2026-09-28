@@ -13,42 +13,68 @@ app.get('/healthz', (req, res) => {
   res.sendStatus(200);
 });
 
-// 适配云托管默认 80 探针
 const PORT = process.env.PORT || 80;
-const FIXED_ROOM = "default_room_001";
-let roomHistory = [];
-const onlineClients = new Set();
+
+//房间池：key=房间密钥
+const rooms = {};
 const MAX_ROOM_SIZE = 2;
 
-function broadcastPeerState() {
-  if(onlineClients.size === 2) {
-    io.to(FIXED_ROOM).emit('peer_online');
+function getRoom(roomKey) {
+  if (!rooms[roomKey]) {
+    rooms[roomKey] = {
+      clients: new Set(),
+      history: []
+    };
+  }
+  return rooms[roomKey];
+}
+
+function broadcastPeerState(roomKey) {
+  const room = getRoom(roomKey);
+  if (room.clients.size === 2) {
+    io.to(roomKey).emit('peer_online');
   }
 }
 
 io.on('connection', (socket) => {
   console.log('新连接：', socket.id);
+  socket.currentRoomKey = null;
 
-  socket.on('auto_join', () => {
-    if (onlineClients.size >= MAX_ROOM_SIZE) {
+  socket.on('auto_join', (roomKey) => {
+    const room = getRoom(roomKey);
+    if (room.clients.size >= MAX_ROOM_SIZE) {
       socket.emit('room_full');
-      console.log(`拒绝${socket.id}，当前在线${onlineClients.size}`);
       return;
     }
-    socket.join(FIXED_ROOM);
-    socket.currentRoom = FIXED_ROOM;
-    onlineClients.add(socket.id);
-    console.log(`${socket.id}加入房间，在线：`, onlineClients.size);
-    broadcastPeerState();
+
+    //离开之前的旧房间
+    if(socket.currentRoomKey){
+      const oldRoom = getRoom(socket.currentRoomKey);
+      oldRoom.clients.delete(socket.id);
+      socket.leave(socket.currentRoomKey);
+      if(oldRoom.clients.size === 1){
+        io.to(socket.currentRoomKey).emit('room_destroy');
+        oldRoom.history = [];
+      }
+      broadcastPeerState(socket.currentRoomKey);
+    }
+
+    socket.join(roomKey);
+    socket.currentRoomKey = roomKey;
+    room.clients.add(socket.id);
+    console.log(`${socket.id} 加入房间【${roomKey}】，当前人数：${room.clients.size}`);
+    broadcastPeerState(roomKey);
   });
 
   socket.on('send_message', (data) => {
-    roomHistory.push({
+    const roomKey = data.room;
+    const room = getRoom(roomKey);
+    room.history.push({
       msgId: data.msgId,
       sender: data.sender,
       encrypted: data.encrypted
     });
-    socket.to(data.room).emit('receive_message', {
+    socket.to(roomKey).emit('receive_message', {
       msgId: data.msgId,
       sender: data.sender,
       encrypted: data.encrypted
@@ -68,19 +94,18 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnecting', () => {
-    const room = socket.currentRoom;
-    if (!room) return;
-    onlineClients.delete(socket.id);
-    console.log(`${socket.id}离开房间，在线：`, onlineClients.size);
+    const roomKey = socket.currentRoomKey;
+    if (!roomKey) return;
+    const room = getRoom(roomKey);
+    room.clients.delete(socket.id);
+    socket.leave(roomKey);
+    console.log(`${socket.id}离开房间【${roomKey}】，剩余${room.clients.size}`);
 
-    if (onlineClients.size === 1) {
-      io.to(room).emit('room_destroy');
-      roomHistory = [];
+    if (room.clients.size === 1) {
+      io.to(roomKey).emit('room_destroy');
+      room.history = [];
     }
-    if(onlineClients.size === 0){
-      roomHistory = [];
-    }
-    broadcastPeerState();
+    broadcastPeerState(roomKey);
   });
 });
 
