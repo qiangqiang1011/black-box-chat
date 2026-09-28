@@ -9,23 +9,32 @@ const io = new Server(server, {
 });
 
 app.use(express.static('public'));
+app.get('/healthz', (req, res) => {
+  res.sendStatus(200);
+});
 
-const PORT = process.env.PORT || 80;
+const PORT = process.env.PORT || 3000;
 const FIXED_ROOM = "default_room_001";
 const roomHistory = new Map();
+const onlineClients = new Set();
 const MAX_ROOM_SIZE = 2;
 
 io.on('connection', (socket) => {
+  console.log('新连接：', socket.id);
+
   socket.on('auto_join', () => {
     const roomObj = io.sockets.adapter.rooms.get(FIXED_ROOM);
     const currentSize = roomObj ? roomObj.size : 0;
 
-    if (currentSize >= MAX_ROOM_SIZE) {
+    if (onlineClients.size >= MAX_ROOM_SIZE) {
       socket.emit('room_full');
+      console.log(`拒绝${socket.id}，当前在线${onlineClients.size}`);
       return;
     }
     socket.join(FIXED_ROOM);
     socket.currentRoom = FIXED_ROOM;
+    onlineClients.add(socket.id);
+    console.log(`${socket.id}加入房间，在线：`, onlineClients.size);
 
     if (roomHistory.has(FIXED_ROOM)) {
       socket.emit('room_history', roomHistory.get(FIXED_ROOM));
@@ -41,7 +50,8 @@ io.on('connection', (socket) => {
       sender: data.sender,
       encrypted: data.encrypted
     });
-    io.to(data.room).emit('receive_message', {
+    // =========这里是修复点！socket.to 不会把消息发回给自己=========
+    socket.to(data.room).emit('receive_message', {
       msgId: data.msgId,
       sender: data.sender,
       encrypted: data.encrypted
@@ -60,21 +70,19 @@ io.on('connection', (socket) => {
     socket.to(data.room).emit('user_stop_typing', data.sender);
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnecting', () => {
     const room = socket.currentRoom;
     if (!room) return;
-    const roomObj = io.sockets.adapter.rooms.get(room);
-    // 断开后，房间剩余人数
-    const remaining = roomObj ? roomObj.size : 0;
+    onlineClients.delete(socket.id);
+    console.log(`${socket.id}离开房间，在线：`, onlineClients.size);
 
-    // 只要还有1个人留在房间 → 代表另一个人走了，立即销毁
-    if (remaining === 1) {
+    if (onlineClients.size === 1) {
       io.to(room).emit('room_destroy');
       roomHistory.delete(room);
     }
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`服务启动，监听端口 ${PORT}`);
 });
