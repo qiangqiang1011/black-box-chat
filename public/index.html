@@ -94,6 +94,14 @@
       opacity:0.8;
       letter-spacing:1px;
     }
+    .rebuild-tip {
+      text-align:center;
+      color:#00ff41;
+      font-size:13px;
+      margin-top:20px;
+      opacity:0.8;
+      letter-spacing:1px;
+    }
 
     .row {
       display:flex;
@@ -240,7 +248,6 @@
 
     socket.on('connect', () => {
       connectStatus.style.display = 'none';
-      // 如果信道已经销毁，重连后不请求历史消息
       if(!destroyed){
         socket.emit('auto_join');
       }
@@ -250,7 +257,6 @@
       fullModal.style.display = 'flex';
     });
 
-    // 【重点】收到历史消息的时候，先判断信道是否销毁
     socket.on('room_history', async (history) => {
       if(destroyed) return;
       chatBox.innerHTML = '';
@@ -274,6 +280,18 @@
       input.disabled = true;
       input.value = '';
       input.placeholder = '信道已断开';
+    });
+
+    // 对方上线，重建信道，新增提示文字
+    socket.on('peer_online', () => {
+      destroyed = false;
+      chatBox.innerHTML = '';
+      const tip = document.createElement('div');
+      tip.className = 'rebuild-tip';
+      tip.textContent = '对方重新上线，信道重建';
+      chatBox.appendChild(tip);
+      input.disabled = false;
+      input.placeholder = '输入消息...';
     });
 
     socket.on('message_read', (msgId) => {
