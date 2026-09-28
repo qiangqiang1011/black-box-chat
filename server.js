@@ -15,7 +15,7 @@ app.get('/healthz', (req, res) => {
 
 const PORT = process.env.PORT || 80;
 
-//房间池：key=房间密钥
+//房间池
 const rooms = {};
 const MAX_ROOM_SIZE = 2;
 
@@ -30,42 +30,48 @@ function getRoom(roomKey) {
 }
 
 io.on('connection', (socket) => {
-  console.log('新连接：', socket.id);
+  console.log('新连接 socket.id =', socket.id);
   socket.currentRoomKey = null;
 
   socket.on('auto_join', (roomKey) => {
-    //先离开旧房间
+    // 如果当前已经在别的房间，先退出旧房间
     if(socket.currentRoomKey){
-      const oldRoom = getRoom(socket.currentRoomKey);
+      const oldKey = socket.currentRoomKey;
+      const oldRoom = getRoom(oldKey);
       oldRoom.clients.delete(socket.id);
-      socket.leave(socket.currentRoomKey);
-      if(oldRoom.clients.size === 1){
-        io.to(socket.currentRoomKey).emit('room_destroy');
-        oldRoom.history = [];
+      socket.leave(oldKey);
+      console.log(`【离开旧房间】${socket.id}, room:${oldKey},剩余:${oldRoom.clients.size}`);
+      if(oldRoom.clients.size === 0){
+        delete rooms[oldKey];
       }
       socket.currentRoomKey = null;
     }
 
     const room = getRoom(roomKey);
-
     socket.join(roomKey, () => {
-      // join成功之后，再判断人数
-      if(room.clients.size >= MAX_ROOM_SIZE){
+      // =========【修复竞态BUG，顺序改动：先add，后校验】=========
+      room.clients.add(socket.id);
+      socket.currentRoomKey = roomKey;
+      console.log(`尝试加入房间【${roomKey}】，socket:${socket.id} 当前人数:${room.clients.size}`);
+
+      if(room.clients.size > MAX_ROOM_SIZE){
+        room.clients.delete(socket.id);
         socket.leave(roomKey);
+        socket.currentRoomKey = null;
+        console.log(`房间【${roomKey}】已满，拒绝 ${socket.id}`);
         socket.emit('room_full');
+        // 如果删完之后房间没人，清理
+        if(room.clients.size === 0){
+          delete rooms[roomKey];
+        }
         return;
       }
 
-      // 加入成功，再添加到集合
-      room.clients.add(socket.id);
-      socket.currentRoomKey = roomKey;
-      console.log(`${socket.id} 加入房间【${roomKey}】，当前人数：${room.clients.size}`);
-
-      if(room.clients.size === 2){
-        // 第二个人来了，触发双方信道建立
+      if(room.clients.size === MAX_ROOM_SIZE){
+        console.log(`✅房间【${roomKey}】凑齐两人，触发peer_online`);
         io.to(roomKey).emit('peer_online');
       }
-      // size ===1：第一个人，什么事件都不发，前端直接显示等待提示
+      // size=1 不发任何事件，前端保持等待状态
     });
   });
 
@@ -102,10 +108,15 @@ io.on('connection', (socket) => {
     const room = getRoom(roomKey);
     room.clients.delete(socket.id);
     socket.leave(roomKey);
-    console.log(`${socket.id}离开房间【${roomKey}】，剩余${room.clients.size}`);
+    console.log(`❌断开连接，离开【${roomKey}】socket:${socket.id}，剩余人数:${room.clients.size}`);
 
     if (room.clients.size === 1) {
       io.to(roomKey).emit('room_destroy');
+    }
+    //房间空了，直接删除，释放内存
+    if(room.clients.size === 0){
+      delete rooms[roomKey];
+      console.log(`🗑房间【${roomKey}】没人了，删除房间`);
     }
   });
 });
