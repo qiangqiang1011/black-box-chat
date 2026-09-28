@@ -1,126 +1,105 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*" }
-});
-
-app.use(express.static('public'));
-app.get('/healthz', (req, res) => {
-  res.sendStatus(200);
-});
-
-const PORT = process.env.PORT || 80;
-
-//房间池
-const rooms = {};
-const MAX_ROOM_SIZE = 2;
-
-function getRoom(roomKey) {
-  if (!rooms[roomKey]) {
-    rooms[roomKey] = {
-      clients: new Set(),
-      history: []
-    };
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
   }
-  return rooms[roomKey];
+});
+
+// 静态文件托管，public目录
+app.use(express.static(path.join(__dirname, 'public')));
+
+// 8个房间，每个最多2人
+const rooms = new Map();
+for(let i=1;i<=8;i++){
+  rooms.set(i, { count:0, clients:[] });
+}
+
+// 广播全部房间状态
+function broadcastRoomStatus(){
+  const arr = [];
+  for(let i=1;i<=8;i++){
+    const r = rooms.get(i);
+    arr.push({num:i, full: r.count >=2});
+  }
+  io.emit('room_status', arr);
 }
 
 io.on('connection', (socket) => {
-  console.log('新连接 socket.id =', socket.id);
-  socket.currentRoomKey = null;
+  console.log('客户端连接', socket.id);
+  socket.currentRoom = null;
 
-  socket.on('auto_join', (rawRoomKey) => {
-    //后端也trim，消除首尾空格漏洞
-    const roomKey = rawRoomKey.trim();
-    if (!roomKey) return;
+  broadcastRoomStatus();
 
-    // 如果当前已经在别的房间，先退出旧房间
-    if(socket.currentRoomKey){
-      const oldKey = socket.currentRoomKey;
-      const oldRoom = getRoom(oldKey);
-      oldRoom.clients.delete(socket.id);
-      socket.leave(oldKey);
-      console.log(`【离开旧房间】${socket.id}, room:${oldKey},剩余:${oldRoom.clients.size}`);
-      if(oldRoom.clients.size === 0){
-        delete rooms[oldKey];
-      }
-      socket.currentRoomKey = null;
+  // 加入房间
+  socket.on('join', (roomNum)=>{
+    const room = rooms.get(roomNum);
+    if(!room) return;
+    if(room.count >=2){
+      socket.emit('tip','房间已满，请选择其他房间');
+      return;
     }
 
-    const room = getRoom(roomKey);
-    socket.join(roomKey, () => {
-      room.clients.add(socket.id);
-      socket.currentRoomKey = roomKey;
-      console.log(`尝试加入房间【${roomKey}】，socket:${socket.id} 当前人数:${room.clients.size}`);
-
-      if(room.clients.size > MAX_ROOM_SIZE){
-        room.clients.delete(socket.id);
-        socket.leave(roomKey);
-        socket.currentRoomKey = null;
-        console.log(`房间【${roomKey}】已满，拒绝 ${socket.id}`);
-        socket.emit('room_full');
-        if(room.clients.size === 0){
-          delete rooms[roomKey];
-        }
-        return;
+    // 退出之前的房间
+    if(socket.currentRoom !== null){
+      const old = rooms.get(socket.currentRoom);
+      if(old){
+        old.clients = old.clients.filter(c=>c!==socket.id);
+        old.count = old.clients.length;
       }
-
-      if(room.clients.size === MAX_ROOM_SIZE){
-        console.log(`✅房间【${roomKey}】凑齐两人，触发peer_online`);
-        io.to(roomKey).emit('peer_online');
-      }
-    });
-  });
-
-  socket.on('send_message', (data) => {
-    const roomKey = data.room.trim();
-    const room = getRoom(roomKey);
-    room.history.push({
-      msgId: data.msgId,
-      sender: data.sender,
-      encrypted: data.encrypted
-    });
-    socket.to(roomKey).emit('receive_message', {
-      msgId: data.msgId,
-      sender: data.sender,
-      encrypted: data.encrypted
-    });
-  });
-
-  socket.on('read_receipt', (data) => {
-    socket.to(data.room).emit('message_read', data.msgId);
-  });
-
-  socket.on('typing', (data) => {
-    socket.to(data.room).emit('user_typing', data.sender);
-  });
-
-  socket.on('stop_typing', (data) => {
-    socket.to(data.room).emit('user_stop_typing', data.sender);
-  });
-
-  socket.on('disconnecting', () => {
-    const roomKey = socket.currentRoomKey;
-    if (!roomKey) return;
-    const room = getRoom(roomKey);
-    room.clients.delete(socket.id);
-    socket.leave(roomKey);
-    console.log(`❌断开连接，离开【${roomKey}】socket:${socket.id}，剩余人数:${room.clients.size}`);
-
-    if (room.clients.size === 1) {
-      io.to(roomKey).emit('room_destroy');
     }
-    if(room.clients.size === 0){
-      delete rooms[roomKey];
-      console.log(`🗑房间【${roomKey}】无人，删除房间`);
+
+    socket.currentRoom = roomNum;
+    socket.join(`room_${roomNum}`);
+    room.clients.push(socket.id);
+    room.count = room.clients.length;
+
+    broadcastRoomStatus();
+
+    if(room.count ===1){
+      socket.emit('wait');
+    }else if(room.count ===2){
+      io.to(`room_${roomNum}`).emit('online');
     }
+  });
+
+  // 密钥交换，单纯透传
+  socket.on('key_exchange', (payload)=>{
+    const r = socket.currentRoom;
+    if(!r) return;
+    socket.to(`room_${r}`).emit('key_exchange', payload);
+  });
+
+  // 密文转发，服务器不解密、不存储
+  socket.on('send_cipher', (cipher)=>{
+    const r = socket.currentRoom;
+    if(!r) return;
+    socket.to(`room_${r}`).emit('recv_cipher', cipher);
+  });
+
+  // 用户断线处理
+  socket.on('disconnect', ()=>{
+    const r = socket.currentRoom;
+    if(r === null) return;
+    const room = rooms.get(r);
+    if(!room) return;
+
+    room.clients = room.clients.filter(c=>c!==socket.id);
+    room.count = room.clients.length;
+
+    socket.to(`room_${r}`).emit('partner_leave');
+    broadcastRoomStatus();
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`服务启动成功，监听端口 ${PORT}`);
+// ========== 重点：监听80端口 ==========
+const PORT = process.env.PORT || 80;
+server.listen(PORT, ()=>{
+  console.log(`服务启动，端口 ${PORT}`);
 });
