@@ -5,12 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>私密空间</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       height: 100vh;
       display: flex;
@@ -22,17 +17,13 @@
       user-select: none;
       -webkit-tap-highlight-color: transparent;
     }
-
-    /* 房间列表 */
     #roomPanel {
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0;
       background: radial-gradient(circle at top, #141a2b 0%, #090c14 48%, #07080d 100%);
       padding: 30px 18px 32px;
       overflow-y: auto;
       z-index: 20;
     }
-
     .panel-title {
       text-align: center;
       font-size: 16px;
@@ -41,7 +32,6 @@
       margin-bottom: 6px;
       font-weight: 500;
     }
-
     .panel-subtitle {
       text-align: center;
       font-size: 11px;
@@ -49,7 +39,6 @@
       margin-bottom: 26px;
       letter-spacing: 2px;
     }
-
     .room-item {
       max-width: 520px;
       margin: 10px auto;
@@ -62,74 +51,35 @@
       padding: 16px 18px;
       transition: border-color 0.25s ease, transform 0.2s ease;
     }
-
-    .room-item:active {
-      transform: scale(0.985);
-    }
-
+    .room-item:active { transform: scale(0.985); }
     .room-item.room-full {
       border-color: rgba(240, 80, 80, 0.18);
       background: linear-gradient(135deg, rgba(240, 80, 80, 0.06), rgba(240, 80, 80, 0.02));
     }
-
-    .room-left {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
+    .room-left { display: flex; align-items: center; gap: 14px; }
     .room-number {
-      width: 40px;
-      height: 40px;
+      width: 40px; height: 40px;
       border-radius: 14px;
       background: linear-gradient(135deg, #1f2a44, #121826);
       border: 1px solid rgba(255,255,255,0.06);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 15px;
-      font-weight: 600;
-      color: #c7d2ea;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 600; color: #c7d2ea;
       letter-spacing: 1px;
     }
-
-    .room-meta {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .room-name {
-      font-size: 14px;
-      color: #e6ecf7;
-    }
-
-    .room-desc {
-      font-size: 11px;
-      color: #5d6780;
-    }
-
+    .room-meta { display: flex; flex-direction: column; gap: 4px; }
+    .room-name { font-size: 14px; color: #e6ecf7; }
+    .room-desc { font-size: 11px; color: #5d6780; }
     .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
+      width: 7px; height: 7px; border-radius: 50%;
       background: #34d399;
       box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
       margin-right: 8px;
     }
-
     .status-dot.full {
       background: #f87171;
       box-shadow: 0 0 10px rgba(248, 113, 113, 0.5);
     }
-
-    .room-status {
-      display: flex;
-      align-items: center;
-      font-size: 12px;
-      color: #7f8aa3;
-    }
-
+    .room-status { display: flex; align-items: center; font-size: 12px; color: #7f8aa3; }
     .enter-btn {
       border: 1px solid rgba(120, 180, 255, 0.25);
       background: linear-gradient(135deg, rgba(90, 140, 255, 0.12), rgba(90, 140, 255, 0.04));
@@ -142,74 +92,43 @@
       font-family: inherit;
       transition: all 0.25s ease;
     }
-
     .enter-btn:hover {
       border-color: rgba(120, 180, 255, 0.45);
       background: linear-gradient(135deg, rgba(90, 140, 255, 0.2), rgba(90, 140, 255, 0.08));
     }
-
     .enter-btn:disabled {
       border-color: rgba(255,255,255,0.06);
       background: transparent;
       color: #4a5468;
       cursor: not-allowed;
     }
-
-    /* 房间页底部免责提示 */
     .disclaimer {
-      font-size:11px;
-      color:#4a5468;
+      font-size:11px; color:#4a5468;
       text-align:center;
       padding:20px 12px 12px;
       line-height:1.5;
     }
-
-    /* 顶部导航 */
     .nav-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      display: flex; align-items: center; justify-content: space-between;
       padding: 14px 18px;
       border-bottom: 1px solid rgba(255,255,255,0.04);
       background: rgba(7, 8, 13, 0.6);
       backdrop-filter: blur(10px);
-      position: relative;
-      z-index: 10;
+      position: relative; z-index: 10;
     }
-
-    .nav-title {
-      font-size: 12px;
-      letter-spacing: 3px;
-      color: #7f8aa3;
-    }
-
-    .nav-room {
-      font-size: 14px;
-      color: #e6ecf7;
-      font-weight: 600;
-    }
-
-    .nav-status {
-      display: flex;
-      align-items: center;
-      font-size: 11px;
-      color: #7f8aa3;
-    }
-
+    .nav-title { font-size: 12px; letter-spacing: 3px; color: #7f8aa3; }
+    .nav-room { font-size: 14px; color: #e6ecf7; font-weight: 600; }
+    .nav-status { display: flex; align-items: center; font-size: 11px; color: #7f8aa3; }
     .status-dot-nav {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
+      width: 8px; height: 8px; border-radius: 50%;
       background: #f5c542;
       box-shadow: 0 0 10px rgba(245, 197, 66, 0.5);
       margin-right: 8px;
     }
-
     .status-dot-nav.online {
       background: #34d399;
       box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
     }
-
     .back-btn {
       border: 1px solid rgba(255,255,255,0.08);
       background: rgba(255,255,255,0.03);
@@ -221,14 +140,7 @@
       cursor: pointer;
       font-family: inherit;
     }
-
-    /* 聊天区 */
-    #chat {
-      flex: 1;
-      padding: 18px 16px 14px;
-      overflow-y: auto;
-    }
-
+    #chat { flex: 1; padding: 18px 16px 14px; overflow-y: auto; }
     .tip-card {
       max-width: 72%;
       margin: 18px auto;
@@ -238,32 +150,11 @@
       border: 1px solid rgba(255,255,255,0.06);
       text-align: center;
     }
-
-    .tip-title {
-      font-size: 13px;
-      color: #e6ecf7;
-      margin-bottom: 4px;
-      letter-spacing: 1px;
-    }
-
-    .tip-desc {
-      font-size: 11px;
-      color: #5d6780;
-    }
-
-    .row {
-      display: flex;
-      margin-bottom: 14px;
-    }
-
-    .row.l {
-      justify-content: flex-start;
-    }
-
-    .row.r {
-      justify-content: flex-end;
-    }
-
+    .tip-title { font-size: 13px; color: #e6ecf7; margin-bottom: 4px; letter-spacing: 1px; }
+    .tip-desc { font-size: 11px; color: #5d6780; }
+    .row { display: flex; margin-bottom: 14px; }
+    .row.l { justify-content: flex-start; }
+    .row.r { justify-content: flex-end; }
     .bubble {
       max-width: 74%;
       padding: 11px 14px;
@@ -273,14 +164,12 @@
       word-wrap: break-word;
       white-space: pre-wrap;
     }
-
     .l .bubble {
       background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
       border: 1px solid rgba(255,255,255,0.06);
       color: #d8deea;
       border-top-left-radius: 6px;
     }
-
     .r .bubble {
       background: linear-gradient(135deg, #2f4472, #203157);
       border: 1px solid rgba(120, 180, 255, 0.18);
@@ -288,16 +177,12 @@
       border-top-right-radius: 6px;
       box-shadow: 0 4px 18px rgba(32, 49, 87, 0.45);
     }
-
-    /* 输入区 */
     #inputBox {
-      display: flex;
-      gap: 10px;
+      display: flex; gap: 10px;
       padding: 12px 14px 16px;
       border-top: 1px solid rgba(255,255,255,0.04);
       background: rgba(7, 8, 13, 0.6);
     }
-
     #txt {
       flex: 1;
       background: rgba(255,255,255,0.04);
@@ -309,66 +194,39 @@
       font-size: 14px;
       font-family: inherit;
     }
-
-    #txt::placeholder {
-      color: #4a5468;
-    }
-
-    #txt:disabled {
-      opacity: 0.4;
-    }
-
+    #txt::placeholder { color: #4a5468; }
+    #txt:disabled { opacity: 0.4; }
     #send {
-      width: 44px;
-      height: 44px;
+      width: 44px; height: 44px;
       border-radius: 50%;
       border: none;
       background: linear-gradient(135deg, #4f78d1, #3657a8);
       color: #fff;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: flex; align-items: center; justify-content: center;
       box-shadow: 0 6px 20px rgba(54, 87, 168, 0.45);
     }
-
     #send:disabled {
       background: rgba(255,255,255,0.06);
       color: #4a5468;
       box-shadow: none;
       cursor: not-allowed;
     }
-
-    .send-icon {
-      width: 18px;
-      height: 18px;
-    }
-
-    /* 滚动条 */
-    #chat::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    #chat::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.08);
-      border-radius: 4px;
-    }
+    .send-icon { width: 18px; height: 18px; }
+    #chat::-webkit-scrollbar { width: 4px; }
+    #chat::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
   </style>
 </head>
 <body>
-
-  <!-- 房间列表 -->
   <div id="roomPanel">
     <div class="panel-title">私密空间</div>
     <div class="panel-subtitle">PRIVATE SPACE · 8 ROOMS · E2EE</div>
     <div id="list"></div>
-    <!-- 仅房间选择页显示免责 -->
     <div class="disclaimer">
       本服务不会保存聊天记录，退出即销毁！所有消息采用端到端加密，服务器无法读取内容。
     </div>
   </div>
 
-  <!-- 聊天界面 -->
   <div class="nav-bar">
     <button class="back-btn" id="backBtn">返回</button>
     <div>
@@ -395,9 +253,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io({
-      transports: ['websocket', 'polling']
-    });
+    const socket = io({ transports: ['websocket', 'polling'] });
 
     const roomPanel = document.getElementById('roomPanel');
     const listWrap = document.getElementById('list');
@@ -413,7 +269,6 @@
     let sharedKey = null;
     let myPublicKey = null;
 
-    // ========== E2EE 加密工具 AES-GCM ==========
     async function genKeyPair() {
       const keyPair = await window.crypto.subtle.generateKey(
         { name: "ECDH", namedCurve: "P-256" },
@@ -444,9 +299,7 @@
       const data = encoder.encode(plaintext);
       const iv = window.crypto.getRandomValues(new Uint8Array(12));
       const cipher = await window.crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
-        key,
-        data
+        { name: "AES-GCM", iv }, key, data
       );
       const combined = new Uint8Array(iv.byteLength + cipher.byteLength);
       combined.set(iv, 0);
@@ -460,19 +313,14 @@
         const iv = raw.slice(0,12);
         const ciphertext = raw.slice(12);
         const plain = await window.crypto.subtle.decrypt(
-          { name: "AES-GCM", iv },
-          key,
-          ciphertext
+          { name: "AES-GCM", iv }, key, ciphertext
         );
-        const decoder = new TextDecoder();
-        return decoder.decode(plain);
+        return new TextDecoder().decode(plain);
       }catch(e){
         return "[解密失败]";
       }
     }
-    // ===========================================
 
-    // 安全渲染房间列表，修复XSS（不用innerHTML拼接内容）
     function renderDefault() {
       listWrap.innerHTML = '';
       for (let i = 1; i <= 8; i++) {
@@ -508,8 +356,7 @@
         const dot = document.createElement('span');
         dot.className = 'status-dot';
         statusBox.appendChild(dot);
-        const statusText = document.createTextNode("空闲");
-        statusBox.appendChild(statusText);
+        statusBox.appendChild(document.createTextNode("空闲"));
 
         const enterBtn = document.createElement('button');
         enterBtn.className = 'enter-btn';
@@ -523,7 +370,6 @@
         listWrap.appendChild(wrap);
       }
     }
-
     renderDefault();
 
     socket.on('room_status', arr => {
@@ -550,12 +396,11 @@
       });
     });
 
-    async function joinRoom(num) {
+    function joinRoom(num) {
       socket.emit('join', num);
     }
 
-    // 返回按钮：完整清空密钥、消息、状态
-    backBtn.addEventListener('click', async () => {
+    backBtn.addEventListener('click', () => {
       sharedKey = null;
       myPublicKey = null;
       inRoom = false;
@@ -572,7 +417,6 @@
     socket.on('wait', async () => {
       inRoom = true;
       roomPanel.style.display = 'none';
-      socket.currentRoom = socket.currentRoom;
       navRoom.textContent = '房间 ' + socket.currentRoom;
       navStatusText.textContent = '等待对方';
       navDot.classList.remove('online');
@@ -591,14 +435,13 @@
       txt.disabled = true;
       sendBtn.disabled = true;
 
-      // 生成密钥对，等待交换
       const kp = await genKeyPair();
       myPublicKey = kp;
       socket.emit('key_exchange', { pub: kp.pubRaw });
     });
 
+    // 核心修复：对方上线补发公钥，解决丢包导致无法加密的问题
     socket.on('online', async () => {
-      // 核心修复：对方上线，补发公钥，解决首次key_exchange丢包
       if(myPublicKey){
         socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
       }
@@ -675,7 +518,6 @@
       }
     });
 
-    // 安全添加消息（textContent防XSS）
     function addMsg(text, isMe) {
       const row = document.createElement('div');
       row.className = 'row ' + (isMe ? 'r' : 'l');
@@ -689,18 +531,10 @@
 
     socket.on('tip', msg => alert(msg));
 
-    // 页面关闭/刷新，强制销毁密钥，清除内存
     window.addEventListener('beforeunload', () => {
       sharedKey = null;
       myPublicKey = null;
     });
-
-    // 调试工具，F12控制台执行 debugChat.getState()
-    window.debugChat = {
-      getState:()=>{
-        console.log({inRoom, sharedKey, myPublicKey, currentRoom:socket.currentRoom})
-      }
-    }
   </script>
 </body>
 </html>
