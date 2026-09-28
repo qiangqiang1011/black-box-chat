@@ -33,7 +33,11 @@ io.on('connection', (socket) => {
   console.log('新连接 socket.id =', socket.id);
   socket.currentRoomKey = null;
 
-  socket.on('auto_join', (roomKey) => {
+  socket.on('auto_join', (rawRoomKey) => {
+    //后端也trim，消除首尾空格漏洞
+    const roomKey = rawRoomKey.trim();
+    if (!roomKey) return;
+
     // 如果当前已经在别的房间，先退出旧房间
     if(socket.currentRoomKey){
       const oldKey = socket.currentRoomKey;
@@ -49,7 +53,6 @@ io.on('connection', (socket) => {
 
     const room = getRoom(roomKey);
     socket.join(roomKey, () => {
-      // =========【修复竞态BUG，顺序改动：先add，后校验】=========
       room.clients.add(socket.id);
       socket.currentRoomKey = roomKey;
       console.log(`尝试加入房间【${roomKey}】，socket:${socket.id} 当前人数:${room.clients.size}`);
@@ -60,7 +63,6 @@ io.on('connection', (socket) => {
         socket.currentRoomKey = null;
         console.log(`房间【${roomKey}】已满，拒绝 ${socket.id}`);
         socket.emit('room_full');
-        // 如果删完之后房间没人，清理
         if(room.clients.size === 0){
           delete rooms[roomKey];
         }
@@ -71,12 +73,11 @@ io.on('connection', (socket) => {
         console.log(`✅房间【${roomKey}】凑齐两人，触发peer_online`);
         io.to(roomKey).emit('peer_online');
       }
-      // size=1 不发任何事件，前端保持等待状态
     });
   });
 
   socket.on('send_message', (data) => {
-    const roomKey = data.room;
+    const roomKey = data.room.trim();
     const room = getRoom(roomKey);
     room.history.push({
       msgId: data.msgId,
@@ -113,14 +114,13 @@ io.on('connection', (socket) => {
     if (room.clients.size === 1) {
       io.to(roomKey).emit('room_destroy');
     }
-    //房间空了，直接删除，释放内存
     if(room.clients.size === 0){
       delete rooms[roomKey];
-      console.log(`🗑房间【${roomKey}】没人了，删除房间`);
+      console.log(`🗑房间【${roomKey}】无人，删除房间`);
     }
   });
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`服务启动，监听端口 ${PORT}`);
+  console.log(`服务启动成功，监听端口 ${PORT}`);
 });
