@@ -49,7 +49,7 @@
       border: 1px solid rgba(255,255,255,0.06);
       border-radius: 18px;
       padding: 16px 18px;
-      transition: border-color 0.25s ease, transform 0.2s ease;
+      transition: border-color 0.25s ease, transform 0.25s ease;
     }
     .room-item:active { transform: scale(0.985); }
     .room-item.room-full {
@@ -101,6 +101,38 @@
       background: transparent;
       color: #4a5468;
       cursor: not-allowed;
+    }
+    .rule-box {
+      max-width: 520px;
+      margin: 24px auto 0;
+      padding: 16px 18px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      font-size: 11px;
+      line-height: 1.8;
+      color: #6b7590;
+    }
+    .rule-box h4 {
+      color: #9aa5c0;
+      font-size: 12px;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .rule-box ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    .rule-box li {
+      padding-left: 14px;
+      position: relative;
+      margin-bottom: 4px;
+    }
+    .rule-box li::before {
+      content: "·";
+      position: absolute;
+      left: 0;
+      color: #4a5468;
     }
     .disclaimer {
       font-size:11px; color:#4a5468;
@@ -222,6 +254,18 @@
     <div class="panel-title">私密空间</div>
     <div class="panel-subtitle">PRIVATE SPACE · 8 ROOMS · E2EE</div>
     <div id="list"></div>
+
+    <div class="rule-box">
+      <h4>销毁规则</h4>
+      <ul>
+        <li>服务端全程仅转发密文，不存储任何聊天内容、加密密钥、访问日志</li>
+        <li>退出房间时，本地浏览器内存中的聊天记录、密钥立即全部清空</li>
+        <li>对方离线/退出房间，本地密钥和聊天记录自动销毁</li>
+        <li>关闭浏览器标签页，所有会话数据自动从内存清除，不留痕迹</li>
+        <li>所有明文仅存在双方浏览器内存，不写入本地缓存、不落地存储</li>
+      </ul>
+    </div>
+
     <div class="disclaimer">
       本服务不会保存聊天记录，退出即销毁！所有消息采用端到端加密，服务器无法读取内容。
     </div>
@@ -406,8 +450,9 @@
       socket.emit('join', num);
     }
 
-    // 返回房间列表
+    // 返回房间列表 - 执行销毁
     backBtn.addEventListener('click', () => {
+      // 销毁密钥和聊天记录
       sharedKey = null;
       myPublicKey = null;
       inRoom = false;
@@ -453,13 +498,13 @@
 
     // 双方都连上了
     socket.on('online', async () => {
-      // 修复：如果还没生成密钥对（第二个人进房间），先生成
+      // 修复：第二个人进房间先生成密钥对
       if(!myPublicKey){
         const kp = await genKeyPair();
         myPublicKey = kp;
       }
 
-      // 补发自己的公钥给对方
+      // 补发自己的公钥给对方，防止丢包
       socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
 
       inRoom = true;
@@ -480,7 +525,7 @@
       tip.appendChild(tipDesc);
       chat.appendChild(tip);
 
-      // 修复：连接成功后启用输入框，修改提示文字
+      // 启用输入框
       txt.disabled = false;
       txt.placeholder = '输入消息...';
       sendBtn.disabled = false;
@@ -493,9 +538,10 @@
       sharedKey = await deriveSharedKey(myPublicKey.keyPair, payload.pub);
     });
 
-    // 对方退出了
+    // 对方退出 - 执行销毁
     socket.on('partner_leave', () => {
       inRoom = false;
+      // 销毁密钥和聊天记录
       sharedKey = null;
       myPublicKey = null;
       navStatusText.textContent = '等待中';
@@ -557,7 +603,7 @@
 
     socket.on('tip', msg => alert(msg));
 
-    // 关页面自动销毁密钥
+    // 关闭页面 - 执行销毁
     window.addEventListener('beforeunload', () => {
       sharedKey = null;
       myPublicKey = null;
