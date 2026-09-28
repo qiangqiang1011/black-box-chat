@@ -34,32 +34,38 @@ io.on('connection', (socket) => {
   socket.currentRoomKey = null;
 
   socket.on('auto_join', (roomKey) => {
-    const room = getRoom(roomKey);
-    if (room.clients.size >= MAX_ROOM_SIZE) {
-      socket.emit('room_full');
-      return;
-    }
-
-    //离开之前的旧房间
+    //先离开旧房间
     if(socket.currentRoomKey){
       const oldRoom = getRoom(socket.currentRoomKey);
       oldRoom.clients.delete(socket.id);
       socket.leave(socket.currentRoomKey);
       if(oldRoom.clients.size === 1){
         io.to(socket.currentRoomKey).emit('room_destroy');
+        oldRoom.history = [];
       }
+      socket.currentRoomKey = null;
     }
 
+    const room = getRoom(roomKey);
+
     socket.join(roomKey, () => {
-      socket.currentRoomKey = roomKey;
+      // join成功之后，再判断人数
+      if(room.clients.size >= MAX_ROOM_SIZE){
+        socket.leave(roomKey);
+        socket.emit('room_full');
+        return;
+      }
+
+      // 加入成功，再添加到集合
       room.clients.add(socket.id);
+      socket.currentRoomKey = roomKey;
       console.log(`${socket.id} 加入房间【${roomKey}】，当前人数：${room.clients.size}`);
 
-      if(room.clients.size === 1){
-        socket.emit('wait_peer');
-      }else if(room.clients.size === 2){
+      if(room.clients.size === 2){
+        // 第二个人来了，触发双方信道建立
         io.to(roomKey).emit('peer_online');
       }
+      // size ===1：第一个人，什么事件都不发，前端直接显示等待提示
     });
   });
 
@@ -100,7 +106,6 @@ io.on('connection', (socket) => {
 
     if (room.clients.size === 1) {
       io.to(roomKey).emit('room_destroy');
-      socket.to(roomKey).emit('wait_peer');
     }
   });
 });
