@@ -95,6 +95,7 @@ io.on('connection', (socket) => {
 });
 
 const PORT = 3000;
-server.listen(PORT, ()=>{
+// EKS容器必须监听0.0.0.0
+server.listen(PORT, '0.0.0.0', ()=>{
   console.log(`服务启动，监听端口 ${PORT}`);
 });
