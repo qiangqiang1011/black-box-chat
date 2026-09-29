@@ -40,7 +40,6 @@
     .row.l{justify-content:flex-start}
     .row.r{justify-content:flex-end}
     .bubble{max-width:74%;padding:11px 14px;border-radius:18px;font-size:14px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap;color:#fff}
-    /* 多人不同颜色 */
     .bubble.color-0{background:#4a7bd9}
     .bubble.color-1{background:#2e9e62}
     .bubble.color-2{background:#c9a231}
@@ -124,16 +123,14 @@
     let inRoom = false;
     let modal = null;
     let joinLock = false;
-    let userList = []; // 房间内用户列表，用于分配颜色
+    let userList = [];
     const colorClasses = ['color-0','color-1','color-2','color-3','color-4'];
 
-    // 获取用户对应的颜色索引
     function getUserColorIndex(userId) {
       const idx = userList.indexOf(userId);
       return idx === -1 ? 0 : idx % colorClasses.length;
     }
 
-    // 清空本地聊天记录
     function clearChat() {
       chat.innerHTML = '';
     }
@@ -266,7 +263,7 @@
       };
     });
 
-    // 房间状态更新
+    // 房间列表状态更新
     socket.on('room_status', arr => {
       arr.forEach(v => {
         const dom = document.getElementById('r' + v.num);
@@ -320,6 +317,7 @@
       if (!userList.includes(data.id)) {
         userList.push(data.id);
       }
+      // 更新右上角在线人数
       navStatus.textContent = '在线 ' + data.count + ' 人';
 
       const tip = document.createElement('div');
@@ -329,10 +327,12 @@
       chat.scrollTop = chat.scrollHeight;
     });
 
-    // 有人退出：所有人清空消息
+    // 有人退出房间
     socket.on('user_leave', data => {
       if (!inRoom) return;
       userList = userList.filter(id => id !== data.id);
+      // 修复：更新右上角在线人数
+      navStatus.textContent = '在线 ' + data.count + ' 人';
     });
 
     // 清空聊天指令（有人退出时触发）
