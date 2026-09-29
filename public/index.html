@@ -4,53 +4,43 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>私密空间</title>
-  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{height:100vh;display:flex;flex-direction:column;background:radial-gradient(circle at top,#141a2b 0%,#090c14 48%,#07080d 100%);color:#d8deea;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden;user-select:none;-webkit-tap-highlight-color:transparent}
+    body{height:100vh;display:flex;flex-direction:column;background:radial-gradient(circle at top,#141a2b 0%,#090c14 48%,#07080d 100%);color:#d8deea;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden;user-select:none}
     #roomPanel{position:fixed;inset:0;background:radial-gradient(circle at top,#141a2b 0%,#090c14 48%,#07080d 100%);padding:30px 18px 32px;overflow-y:auto;z-index:20}
     .panel-title{text-align:center;font-size:16px;letter-spacing:6px;color:#c0cbe2;margin-bottom:6px;font-weight:500}
     .panel-subtitle{text-align:center;font-size:11px;color:#4a5468;margin-bottom:26px;letter-spacing:2px}
-    .room-item{max-width:520px;margin:10px auto;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:16px 18px;transition:border-color .25s ease,transform .25s ease}
-    .room-item:active{transform:scale(.985)}
+    .room-item{max-width:520px;margin:10px auto;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:16px 18px}
     .room-left{display:flex;align-items:center;gap:14px}
-    .room-number{width:40px;height:40px;border-radius:14px;background:linear-gradient(135deg,#1f2a44,#121826);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#c7d2ea;letter-spacing:1px}
-    .room-meta{display:flex;flex-direction:column;gap:4px}
+    .room-number{width:40px;height:40px;border-radius:14px;background:linear-gradient(135deg,#1f2a44,#121826);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#c7d2ea}
     .room-name{font-size:14px;color:#e6ecf7}
     .room-status-right{display:flex;align-items:center;gap:10px}
-    .online-tag{display:flex;align-items:center;font-size:12px;color:#7f8aa3}
-    .online-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 10px rgba(52,211,153,.6);margin-right:6px}
-    .enter-btn{border:1px solid rgba(120,180,255,.25);background:linear-gradient(135deg,rgba(90,140,255,.12),rgba(90,140,255,.04));color:#9cb8ff;padding:8px 14px;border-radius:12px;font-size:12px;letter-spacing:2px;cursor:pointer;font-family:inherit;transition:all .25s ease}
-    .enter-btn:hover{border-color:rgba(120,180,255,.45);background:linear-gradient(135deg,rgba(90,140,255,.2),rgba(90,140,255,.08))}
+    .online-text{font-size:12px;color:#7f8aa3}
+    .enter-btn{border:1px solid rgba(120,180,255,.25);background:linear-gradient(135deg,rgba(90,140,255,.12),rgba(90,140,255,.04));color:#9cb8ff;padding:8px 14px;border-radius:12px;font-size:12px;letter-spacing:2px;cursor:pointer;font-family:inherit}
     .admin-btn-wrap{max-width:520px;margin:20px auto 0;text-align:center}
-    .admin-btn{border:1px solid rgba(150,160,180,.2);background:rgba(255,255,255,.02);color:#9aa5c0;padding:10px 20px;border-radius:10px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .2s ease}
-    .admin-btn:hover{border-color:rgba(150,160,180,.4);background:rgba(255,255,255,.04)}
+    .admin-btn{border:1px solid rgba(150,160,180,.2);background:rgba(255,255,255,.02);color:#9aa5c0;padding:10px 20px;border-radius:10px;font-size:12px;cursor:pointer;font-family:inherit}
     .rule-box{max-width:520px;margin:24px auto 0;padding:16px 18px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);font-size:11px;line-height:1.8;color:#6b7590}
     .rule-box h4{color:#9aa5c0;font-size:12px;margin-bottom:8px;font-weight:500}
     .rule-box ul{list-style:none;padding-left:0}
     .rule-box li{padding-left:14px;position:relative;margin-bottom:4px}
     .rule-box li::before{content:"·";position:absolute;left:0;color:#4a5468}
     .disclaimer{font-size:11px;color:#4a5468;text-align:center;padding:20px 12px 12px;line-height:1.5}
-    .nav-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.04);background:rgba(7,8,13,.6);backdrop-filter:blur(10px);position:relative;z-index:10}
+
+    .nav-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.04);background:rgba(7,8,13,.6);backdrop-filter:blur(10px)}
     .nav-title{font-size:12px;letter-spacing:3px;color:#7f8aa3}
     .nav-room{font-size:14px;color:#e6ecf7;font-weight:600}
-    .nav-status{display:flex;align-items:center;font-size:11px;color:#7f8aa3}
-    .status-dot-nav{width:8px;height:8px;border-radius:50%;background:#f5c542;box-shadow:0 0 10px rgba(245,197,66,.5);margin-right:8px}
-    .status-dot-nav.online{background:#34d399;box-shadow:0 0 10px rgba(52,211,153,.6)}
     .back-btn{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:#9ca6bd;padding:7px 12px;border-radius:10px;font-size:11px;letter-spacing:2px;cursor:pointer;font-family:inherit}
-    #chat{flex:1;padding:18px 16px 14px;overflow-y:auto}
-    .tip-card{max-width:72%;margin:18px auto;padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);text-align:center}
-    .tip-title{font-size:13px;color:#e6ecf7;margin-bottom:4px;letter-spacing:1px}
-    .tip-desc{font-size:11px;color:#5d6780}
-    .online-dots{margin-top:8px;letter-spacing:4px}
-    .dot-item{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 3px}
 
-    /* 纯颜色气泡，无用户名 */
+    #chat{flex:1;padding:18px 16px;overflow-y:auto}
+    .tip-card{max-width:72%;margin:18px auto;padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);text-align:center}
+    .tip-title{font-size:13px;color:#e6ecf7;margin-bottom:4px}
+    .tip-desc{font-size:11px;color:#5d6780}
+
     .row{display:flex;margin-bottom:14px}
     .row.l{justify-content:flex-start}
     .row.r{justify-content:flex-end}
     .bubble{max-width:74%;padding:11px 14px;border-radius:18px;font-size:14px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap;color:#fff}
+    /* 多人不同颜色 */
     .bubble.color-0{background:#4a7bd9}
     .bubble.color-1{background:#2e9e62}
     .bubble.color-2{background:#c9a231}
@@ -60,12 +50,9 @@
     #inputBox{display:flex;gap:10px;padding:12px 14px 16px;border-top:1px solid rgba(255,255,255,.04);background:rgba(7,8,13,.6)}
     #txt{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#e6ecf7;padding:12px 14px;border-radius:20px;outline:none;font-size:14px;font-family:inherit}
     #txt::placeholder{color:#4a5468}
-    #txt:disabled{opacity:.4}
     #send{width:44px;height:44px;border-radius:50%;border:none;background:linear-gradient(135deg,#4f78d1,#3657a8);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(54,87,168,.45)}
-    #send:disabled{background:rgba(255,255,255,.06);color:#4a5468;box-shadow:none;cursor:not-allowed}
     .send-icon{width:18px;height:18px}
-    #chat::-webkit-scrollbar{width:4px}
-    #chat::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:4px}
+
     .pwd-modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:99}
     .pwd-modal{width:320px;background:#121826;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:24px}
     .pwd-modal h3{color:#e6ecf7;font-size:15px;margin-bottom:16px;text-align:center;font-weight:500}
@@ -81,7 +68,7 @@
 <body>
   <div id="roomPanel">
     <div class="panel-title">私密空间</div>
-    <div class="panel-subtitle">PRIVATE SPACE · 8 ROOMS · E2EE</div>
+    <div class="panel-subtitle">PRIVATE SPACE · 8 ROOMS</div>
     <div id="list"></div>
     <div class="admin-btn-wrap">
       <button class="admin-btn" id="adminBtn">管理员查看今日房间密码</button>
@@ -89,14 +76,14 @@
     <div class="rule-box">
       <h4>销毁规则</h4>
       <ul>
-        <li>服务端全程仅转发密文，不存储任何聊天内容、加密密钥、访问日志</li>
+        <li>服务端全程仅转发消息，不存储任何聊天内容、访问日志</li>
+        <li>任意一人退出，所有人本地聊天记录自动清空，房间不解散</li>
         <li>点击返回仅销毁本地记录并退出房间，不会强制对方退出</li>
-        <li>对方退出房间时，仅销毁本地聊天记录与密钥，保留在当前房间</li>
-        <li>切换浏览器标签页/浏览器切至后台，本地会话记录与密钥自动销毁</li>
-        <li>关闭浏览器标签页，所有会话数据自动从内存清除，不留痕迹</li>
+        <li>切换浏览器标签页/切后台，本地会话记录自动销毁</li>
+        <li>关闭浏览器标签页，所有会话数据自动从内存清除</li>
       </ul>
     </div>
-    <div class="disclaimer">本服务不会保存聊天记录，退出即销毁！所有消息采用端到端加密，服务器无法读取内容。</div>
+    <div class="disclaimer">本服务不会保存聊天记录，退出即销毁！</div>
   </div>
 
   <div class="nav-bar">
@@ -105,17 +92,14 @@
       <div class="nav-title">当前房间</div>
       <div class="nav-room" id="navRoom">—</div>
     </div>
-    <div class="nav-status" id="navStatus">
-      <span class="status-dot-nav" id="navDot"></span>
-      <span id="navStatusText">等待中</span>
-    </div>
+    <div style="font-size:11px;color:#7f8aa3" id="navStatus">等待中</div>
   </div>
 
   <div id="chat"></div>
 
   <div id="inputBox">
-    <input id="txt" placeholder="等待建立加密信道..." maxlength="500">
-    <button id="send" disabled>
+    <input id="txt" placeholder="输入消息..." maxlength="500">
+    <button id="send">
       <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="22" y1="2" x2="11" y2="13"></line>
         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -134,112 +118,50 @@
     const sendBtn = document.getElementById('send');
     const backBtn = document.getElementById('backBtn');
     const navRoom = document.getElementById('navRoom');
-    const navStatusText = document.getElementById('navStatusText');
-    const navDot = document.getElementById('navDot');
+    const navStatus = document.getElementById('navStatus');
     const adminBtn = document.getElementById('adminBtn');
 
     let inRoom = false;
-    let sharedKey = null;
-    let myPublicKey = null;
     let modal = null;
     let joinLock = false;
-    let memberMap = new Map();
+    let userList = []; // 房间内用户列表，用于分配颜色
+    const colorClasses = ['color-0','color-1','color-2','color-3','color-4'];
 
-    const colors = ['color-0','color-1','color-2','color-3','color-4'];
-
-    function getColorIndex(id) {
-      let index = 0;
-      for (const mid of memberMap.keys()) {
-        if (mid === id) break;
-        index++;
-      }
-      return index % colors.length;
+    // 获取用户对应的颜色索引
+    function getUserColorIndex(userId) {
+      const idx = userList.indexOf(userId);
+      return idx === -1 ? 0 : idx % colorClasses.length;
     }
 
-    function renderOnlineDots() {
-      const dots = document.createElement('div');
-      dots.className = 'online-dots';
-      let i = 0;
-      for (const id of memberMap.keys()) {
-        dots.innerHTML += `<span class="dot-item ${colors[i % colors.length]}"></span>`;
-        i++;
-      }
-      return dots;
-    }
-
-    // ========== 加密逻辑 ==========
-    function genKeyPair() {
-      const ec = new elliptic.ec('p256');
-      const keyPair = ec.genKeyPair();
-      return { keyPair, pubRaw: keyPair.getPublic('hex') };
-    }
-    function deriveSharedKey(keyPair, remotePubHex) {
-      const shared = keyPair.derive(elliptic.curves.p256.g.fromHex(remotePubHex));
-      const keyHex = shared.toString(16).padStart(64,'0').slice(0,64);
-      return CryptoJS.enc.Hex.parse(keyHex);
-    }
-    function encryptMsg(plaintext, key) {
-      const iv = CryptoJS.lib.WordArray.random(16);
-      const cipher = CryptoJS.AES.encrypt(plaintext, key, {
-        iv: iv,
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7
-      });
-      return iv.toString(CryptoJS.enc.Base64) + ':' + cipher.toString();
-    }
-    function decryptMsg(cipherStr, key) {
-      try {
-        const parts = cipherStr.split(':');
-        const iv = CryptoJS.enc.Base64.parse(parts[0]);
-        const ciphertext = parts[1];
-        const plain = CryptoJS.AES.decrypt(ciphertext, key, {
-          iv: iv,
-          mode: CryptoJS.mode.CBC,
-          padding: CryptoJS.pad.Pkcs7
-        });
-        return plain.toString(CryptoJS.enc.Utf8);
-      } catch(e) {
-        return "[解密失败]";
-      }
-    }
-
-    function clearLocalData() {
-      sharedKey = null;
-      myPublicKey = null;
+    // 清空本地聊天记录
+    function clearChat() {
       chat.innerHTML = '';
-      txt.value = '';
-      memberMap.clear();
     }
 
-    // ========== 房间列表 ==========
-    function renderRoomList() {
+    // 渲染房间列表
+    function renderList() {
       listWrap.innerHTML = '';
       for (let i = 1; i <= 8; i++) {
-        const wrap = document.createElement('div');
-        wrap.className = 'room-item';
-        wrap.id = 'r' + i;
-        wrap.innerHTML = `
+        const item = document.createElement('div');
+        item.className = 'room-item';
+        item.id = 'r' + i;
+        item.innerHTML = `
           <div class="room-left">
             <div class="room-number">${i}</div>
-            <div class="room-meta">
-              <div class="room-name">房间 ${i}</div>
-            </div>
+            <div class="room-name">房间 ${i}</div>
           </div>
           <div class="room-status-right">
-            <div class="online-tag">
-              <span class="online-dot"></span>
-              <span class="online-text">0人在线</span>
-            </div>
+            <span class="online-text">0人在线</span>
             <button class="enter-btn">进入</button>
           </div>`;
-        wrap.querySelector('.enter-btn').onclick = () => openRoomPwdModal(i);
-        listWrap.appendChild(wrap);
+        item.querySelector('.enter-btn').onclick = () => openPwd(i);
+        listWrap.appendChild(item);
       }
     }
-    renderRoomList();
+    renderList();
 
-    // ========== 密码弹窗 ==========
-    function openRoomPwdModal(roomNum) {
+    // 密码弹窗
+    function openPwd(roomNum) {
       if (joinLock) return;
       if (modal) modal.remove();
 
@@ -266,7 +188,7 @@
         modal = null;
       };
 
-      function submitJoin() {
+      function submit() {
         if (joinLock) return;
         const pwd = input.value.trim();
         if (!/^\d{4}$/.test(pwd)) {
@@ -276,22 +198,18 @@
         joinLock = true;
         okBtn.disabled = true;
         okBtn.textContent = '进入中...';
-        socket.emit('join', { roomNum: roomNum, password: pwd });
+        socket.emit('join', { roomNum, password: pwd });
       }
 
-      okBtn.onclick = submitJoin;
+      okBtn.onclick = submit;
       input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          submitJoin();
-        }
+        if (e.key === 'Enter') { e.preventDefault(); submit(); }
       });
     }
 
-    // ========== 管理员入口 ==========
+    // 管理员入口
     adminBtn.onclick = () => {
       if (modal) modal.remove();
-
       const mask = document.createElement('div');
       mask.className = 'pwd-modal-mask';
       mask.innerHTML = `
@@ -305,7 +223,6 @@
         </div>`;
       document.body.appendChild(mask);
       modal = mask;
-
       const input = mask.querySelector('#adminInput');
       input.focus();
 
@@ -320,7 +237,6 @@
         mask.remove();
         modal = null;
       };
-
       input.addEventListener('keydown', e => {
         if (e.key === 'Enter') mask.querySelector('#okAdmin').click();
       });
@@ -332,7 +248,6 @@
         html += `<li><span>房间 ${idx+1}</span><span>${pwd}</span></li>`;
       });
       html += '</ul>';
-
       const mask = document.createElement('div');
       mask.className = 'pwd-modal-mask';
       mask.innerHTML = `
@@ -345,152 +260,104 @@
         </div>`;
       document.body.appendChild(mask);
       modal = mask;
-
       mask.querySelector('#closeBtn').onclick = () => {
         mask.remove();
         modal = null;
       };
     });
 
-    // ========== 房间状态更新 ==========
+    // 房间状态更新
     socket.on('room_status', arr => {
       arr.forEach(v => {
         const dom = document.getElementById('r' + v.num);
         if (!dom) return;
         const text = dom.querySelector('.online-text');
-        const dot = dom.querySelector('.online-dot');
         if (text) text.textContent = v.online + '人在线';
-        if (v.online > 0) {
-          dot.style.background = '#34d399';
-          dot.style.boxShadow = '0 0 10px rgba(52,211,153,.6)';
-        } else {
-          dot.style.background = '#4a5468';
-          dot.style.boxShadow = 'none';
-        }
       });
     });
 
-    // ========== 交互逻辑 ==========
+    // 返回按钮
     backBtn.addEventListener('click', () => {
       socket.emit('leave_room');
-      clearLocalData();
+      clearChat();
+      userList = [];
       inRoom = false;
-      txt.disabled = true;
-      txt.placeholder = '等待建立加密信道...';
-      sendBtn.disabled = true;
       roomPanel.style.display = 'block';
       navRoom.textContent = '—';
-      navStatusText.textContent = '等待中';
-      navDot.classList.remove('online');
+      navStatus.textContent = '等待中';
     });
 
-    // 切后台清记录
+    // 切后台自动清空记录
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && inRoom) {
-        clearLocalData();
+        clearChat();
       }
     });
 
     // 自己进入房间成功
-    socket.on('wait', res => {
+    socket.on('joined', res => {
       joinLock = false;
       if (modal) { modal.remove(); modal = null; }
 
-      memberMap.clear();
-      memberMap.set(socket.id, { id: socket.id, self: true });
-
+      userList = [socket.id];
       inRoom = true;
       roomPanel.style.display = 'none';
       navRoom.textContent = '房间 ' + res.roomNum;
-      navStatusText.textContent = '已进入';
-      navDot.classList.remove('online');
-      chat.innerHTML = '';
+      navStatus.textContent = '在线 ' + res.count + ' 人';
+      clearChat();
 
       const tip = document.createElement('div');
       tip.className = 'tip-card';
-      tip.innerHTML = '<div class="tip-title">已进入房间</div><div class="tip-desc">有人加入会自动建立加密信道</div>';
-      tip.appendChild(renderOnlineDots());
+      tip.innerHTML = '<div class="tip-title">已进入房间</div><div class="tip-desc">当前在线 ' + res.count + ' 人</div>';
       chat.appendChild(tip);
 
-      txt.disabled = true;
-      txt.placeholder = '等待建立加密信道...';
-      sendBtn.disabled = true;
-
-      // 生成自己的密钥对并广播公钥
-      const kp = genKeyPair();
-      myPublicKey = kp;
-      socket.emit('key_exchange', { pub: kp.pubRaw });
+      txt.focus();
     });
 
     // 有人加入房间
     socket.on('user_join', data => {
       if (!inRoom) return;
-
-      // 核心修复：其他人加入时，已在的人重发自己的公钥，让新人收到
-      if (data.id !== socket.id && myPublicKey) {
-        socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
+      if (!userList.includes(data.id)) {
+        userList.push(data.id);
       }
-
-      if (!memberMap.has(data.id)) {
-        memberMap.set(data.id, { id: data.id, self: false });
-      }
-
-      navStatusText.textContent = '在线 ' + data.count + ' 人';
-      navDot.classList.add('online');
+      navStatus.textContent = '在线 ' + data.count + ' 人';
 
       const tip = document.createElement('div');
       tip.className = 'tip-card';
-      tip.innerHTML = `<div class="tip-title">有人加入</div><div class="tip-desc">当前在线 ${data.count} 人</div>`;
-      tip.appendChild(renderOnlineDots());
+      tip.innerHTML = '<div class="tip-title">有人加入</div><div class="tip-desc">当前在线 ' + data.count + ' 人</div>';
       chat.appendChild(tip);
       chat.scrollTop = chat.scrollHeight;
     });
 
-    // 收到对方公钥，生成共享密钥，解锁输入
-    socket.on('key_exchange', payload => {
-      if (!myPublicKey) return;
-      sharedKey = deriveSharedKey(myPublicKey.keyPair, payload.pub);
-
-      if (inRoom && sharedKey) {
-        txt.disabled = false;
-        txt.placeholder = '输入消息...';
-        sendBtn.disabled = false;
-        txt.focus();
-      }
-    });
-
-    // 对方退出
-    socket.on('partner_leave', data => {
+    // 有人退出：所有人清空消息
+    socket.on('user_leave', data => {
       if (!inRoom) return;
-      if (data.id === socket.id) return;
+      userList = userList.filter(id => id !== data.id);
+    });
 
-      memberMap.delete(data.id);
-
+    // 清空聊天指令（有人退出时触发）
+    socket.on('clear_chat', () => {
+      if (!inRoom) return;
+      clearChat();
       const tip = document.createElement('div');
       tip.className = 'tip-card';
-      tip.innerHTML = '<div class="tip-title">有人退出</div><div class="tip-desc">本地记录已销毁</div>';
-      tip.appendChild(renderOnlineDots());
+      tip.innerHTML = '<div class="tip-title">有人退出</div><div class="tip-desc">本地记录已自动清空</div>';
       chat.appendChild(tip);
       chat.scrollTop = chat.scrollHeight;
-
-      sharedKey = null;
-      txt.disabled = true;
-      txt.placeholder = '等待新的连接...';
-      sendBtn.disabled = true;
     });
 
     // 收到消息
-    socket.on('recv_cipher', cipher => {
-      if (!inRoom || !sharedKey) return;
-      addMsg(decryptMsg(cipher, sharedKey), false);
+    socket.on('recv_msg', data => {
+      if (!inRoom) return;
+      addMsg(data.text, data.id);
     });
 
     // 发送消息
     sendBtn.addEventListener('click', () => {
       const val = txt.value.trim();
-      if (!val || !inRoom || !sharedKey) return;
-      socket.emit('send_cipher', encryptMsg(val, sharedKey));
-      addMsg(val, true);
+      if (!val || !inRoom) return;
+      socket.emit('send_msg', val);
+      addMsg(val, socket.id);
       txt.value = '';
       chat.scrollTop = chat.scrollHeight;
     });
@@ -503,16 +370,14 @@
       }
     });
 
-    // 纯颜色气泡，无用户名
-    function addMsg(text, isMe) {
+    // 添加消息气泡（按用户id取颜色）
+    function addMsg(text, userId) {
+      const isMe = userId === socket.id;
       const row = document.createElement('div');
       row.className = 'row ' + (isMe ? 'r' : 'l');
-
       const bubble = document.createElement('div');
-      const colorIdx = getColorIndex(isMe ? socket.id : null);
-      bubble.className = 'bubble ' + colors[colorIdx];
+      bubble.className = 'bubble ' + colorClasses[getUserColorIndex(userId)];
       bubble.textContent = text;
-
       row.appendChild(bubble);
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
@@ -524,7 +389,11 @@
       alert(msg);
     });
 
-    window.addEventListener('beforeunload', clearLocalData);
+    // 关闭页面自动清除
+    window.addEventListener('beforeunload', () => {
+      clearChat();
+      userList = [];
+    });
   </script>
 </body>
 </html>
