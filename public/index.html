@@ -1,340 +1,77 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>私密空间</title>
+  <!-- 纯JS加密库，HTTP环境全平台兼容 -->
   <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background: radial-gradient(circle at top, #141a2b 0%, #090c14 48%, #07080d 100%);
-      color: #d8deea;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-      overflow: hidden;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    #roomPanel {
-      position: fixed; inset: 0;
-      background: radial-gradient(circle at top, #141a2b 0%, #090c14 48%, #07080d 100%);
-      padding: 30px 18px 32px;
-      overflow-y: auto;
-      z-index: 20;
-    }
-    .panel-title {
-      text-align: center;
-      font-size: 16px;
-      letter-spacing: 6px;
-      color: #c0cbe2;
-      margin-bottom: 6px;
-      font-weight: 500;
-    }
-    .panel-subtitle {
-      text-align: center;
-      font-size: 11px;
-      color: #4a5468;
-      margin-bottom: 26px;
-      letter-spacing: 2px;
-    }
-    .room-item {
-      max-width: 520px;
-      margin: 10px auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 18px;
-      padding: 16px 18px;
-      transition: border-color 0.25s ease, transform 0.25s ease;
-    }
-    .room-item:active { transform: scale(0.985); }
-    .room-item.room-full {
-      border-color: rgba(240, 80, 80, 0.18);
-      background: linear-gradient(135deg, rgba(240, 80, 80, 0.06), rgba(240, 80, 80, 0.02));
-    }
-    .room-left { display: flex; align-items: center; gap: 14px; }
-    .room-number {
-      width: 40px; height: 40px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, #1f2a44, #121826);
-      border: 1px solid rgba(255,255,255,0.06);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 15px; font-weight: 600; color: #c7d2ea;
-      letter-spacing: 1px;
-    }
-    .room-meta { display: flex; flex-direction: column; gap: 4px; }
-    .room-name { font-size: 14px; color: #e6ecf7; }
-    .room-desc { font-size: 11px; color: #5d6780; }
-    .status-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: #34d399;
-      box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
-      margin-right: 8px;
-    }
-    .status-dot.full {
-      background: #f87171;
-      box-shadow: 0 0 10px rgba(248, 113, 113, 0.5);
-    }
-    .room-status { display: flex; align-items: center; font-size: 12px; color: #7f8aa3; }
-    .enter-btn {
-      border: 1px solid rgba(120, 180, 255, 0.25);
-      background: linear-gradient(135deg, rgba(90, 140, 255, 0.12), rgba(90, 140, 255, 0.04));
-      color: #9cb8ff;
-      padding: 8px 14px;
-      border-radius: 12px;
-      font-size: 12px;
-      letter-spacing: 2px;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.25s ease;
-    }
-    .enter-btn:hover {
-      border-color: rgba(120, 180, 255, 0.45);
-      background: linear-gradient(135deg, rgba(90, 140, 255, 0.2), rgba(90, 140, 255, 0.08));
-    }
-    .enter-btn:disabled {
-      border-color: rgba(255,255,255,0.06);
-      background: transparent;
-      color: #4a5468;
-      cursor: not-allowed;
-    }
-
-    .admin-btn-wrap {
-      max-width: 520px;
-      margin: 20px auto 0;
-      text-align: center;
-    }
-    .admin-btn {
-      border: 1px solid rgba(150, 160, 180, 0.2);
-      background: rgba(255,255,255,0.02);
-      color: #9aa5c0;
-      padding: 10px 20px;
-      border-radius: 10px;
-      font-size: 12px;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.2s ease;
-    }
-    .admin-btn:hover {
-      border-color: rgba(150, 160, 180, 0.4);
-      background: rgba(255,255,255,0.04);
-    }
-
-    .rule-box {
-      max-width: 520px;
-      margin: 24px auto 0;
-      padding: 16px 18px;
-      border-radius: 12px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.05);
-      font-size: 11px;
-      line-height: 1.8;
-      color: #6b7590;
-    }
-    .rule-box h4 {
-      color: #9aa5c0;
-      font-size: 12px;
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
-    .rule-box ul { list-style: none; padding-left: 0; }
-    .rule-box li {
-      padding-left: 14px;
-      position: relative;
-      margin-bottom: 4px;
-    }
-    .rule-box li::before {
-      content: "·";
-      position: absolute;
-      left: 0;
-      color: #4a5468;
-    }
-    .disclaimer {
-      font-size:11px; color:#4a5468;
-      text-align:center;
-      padding:20px 12px 12px;
-      line-height:1.5;
-    }
-    .nav-bar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 18px;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-      background: rgba(7, 8, 13, 0.6);
-      backdrop-filter: blur(10px);
-      position: relative; z-index: 10;
-    }
-    .nav-title { font-size: 12px; letter-spacing: 3px; color: #7f8aa3; }
-    .nav-room { font-size: 14px; color: #e6ecf7; font-weight: 600; }
-    .nav-status { display: flex; align-items: center; font-size: 11px; color: #7f8aa3; }
-    .status-dot-nav {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #f5c542;
-      box-shadow: 0 0 10px rgba(245, 197, 66, 0.5);
-      margin-right: 8px;
-    }
-    .status-dot-nav.online {
-      background: #34d399;
-      box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
-    }
-    .back-btn {
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.03);
-      color: #9ca6bd;
-      padding: 7px 12px;
-      border-radius: 10px;
-      font-size: 11px;
-      letter-spacing: 2px;
-      cursor: pointer;
-      font-family: inherit;
-    }
-    #chat { flex: 1; padding: 18px 16px 14px; overflow-y: auto; }
-    .tip-card {
-      max-width: 72%;
-      margin: 18px auto;
-      padding: 14px 16px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
-      border: 1px solid rgba(255,255,255,0.06);
-      text-align: center;
-    }
-    .tip-title { font-size: 13px; color: #e6ecf7; margin-bottom: 4px; letter-spacing: 1px; }
-    .tip-desc { font-size: 11px; color: #5d6780; }
-    .row { display: flex; margin-bottom: 14px; }
-    .row.l { justify-content: flex-start; }
-    .row.r { justify-content: flex-end; }
-    .bubble {
-      max-width: 74%;
-      padding: 11px 14px;
-      border-radius: 18px;
-      font-size: 14px;
-      line-height: 1.5;
-      word-wrap: break-word;
-      white-space: pre-wrap;
-    }
-    .l .bubble {
-      background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-      border: 1px solid rgba(255,255,255,0.06);
-      color: #d8deea;
-      border-top-left-radius: 6px;
-    }
-    .r .bubble {
-      background: linear-gradient(135deg, #2f4472, #203157);
-      border: 1px solid rgba(120, 180, 255, 0.18);
-      color: #eaf1ff;
-      border-top-right-radius: 6px;
-      box-shadow: 0 4px 18px rgba(32, 49, 87, 0.45);
-    }
-    #inputBox {
-      display: flex; gap: 10px;
-      padding: 12px 14px 16px;
-      border-top: 1px solid rgba(255,255,255,0.04);
-      background: rgba(7, 8, 13, 0.6);
-    }
-    #txt {
-      flex: 1;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.06);
-      color: #e6ecf7;
-      padding: 12px 14px;
-      border-radius: 20px;
-      outline: none;
-      font-size: 14px;
-      font-family: inherit;
-    }
-    #txt::placeholder { color: #4a5468; }
-    #txt:disabled { opacity: 0.4; }
-    #send {
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      border: none;
-      background: linear-gradient(135deg, #4f78d1, #3657a8);
-      color: #fff;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 6px 20px rgba(54, 87, 168, 0.45);
-    }
-    #send:disabled {
-      background: rgba(255,255,255,0.06);
-      color: #4a5468;
-      box-shadow: none;
-      cursor: not-allowed;
-    }
-    .send-icon { width: 18px; height: 18px; }
-    #chat::-webkit-scrollbar { width: 4px; }
-    #chat::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
-
-    .pwd-modal-mask {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.6);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 99;
-    }
-    .pwd-modal {
-      width: 320px;
-      background: #121826;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px;
-      padding: 24px;
-    }
-    .pwd-modal h3 {
-      color: #e6ecf7;
-      font-size: 15px;
-      margin-bottom: 16px;
-      text-align: center;
-      font-weight: 500;
-    }
-    .pwd-modal input {
-      width: 100%;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      color: #e6ecf7;
-      padding: 12px;
-      border-radius: 10px;
-      font-size: 14px;
-      outline: none;
-      margin-bottom: 16px;
-      text-align: center;
-      letter-spacing: 2px;
-    }
-    .pwd-modal .pwd-list {
-      margin-bottom: 16px;
-      line-height: 2;
-      font-size: 13px;
-      color: #c0cbe2;
-    }
-    .pwd-modal .pwd-list li {
-      display: flex;
-      justify-content: space-between;
-      list-style: none;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-      padding: 4px 0;
-    }
-    .pwd-modal-btns {
-      display: flex; gap: 10px;
-    }
-    .pwd-modal-btn {
-      flex: 1;
-      padding: 10px;
-      border-radius: 10px;
-      border: none;
-      font-size: 13px;
-      cursor: pointer;
-      font-family: inherit;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, #4f78d1, #3657a8);
-      color: #fff;
-    }
-    .btn-cancel {
-      background: rgba(255,255,255,0.04);
-      color: #9ca6bd;
-    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{height:100vh;display:flex;flex-direction:column;background:radial-gradient(circle at top,#141a2b 0%,#090c14 48%,#07080d 100%);color:#d8deea;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden;user-select:none;-webkit-tap-highlight-color:transparent}
+    #roomPanel{position:fixed;inset:0;background:radial-gradient(circle at top,#141a2b 0%,#090c14 48%,#07080d 100%);padding:30px 18px 32px;overflow-y:auto;z-index:20}
+    .panel-title{text-align:center;font-size:16px;letter-spacing:6px;color:#c0cbe2;margin-bottom:6px;font-weight:500}
+    .panel-subtitle{text-align:center;font-size:11px;color:#4a5468;margin-bottom:26px;letter-spacing:2px}
+    .room-item{max-width:520px;margin:10px auto;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:16px 18px;transition:border-color .25s ease,transform .25s ease}
+    .room-item:active{transform:scale(.985)}
+    .room-item.room-full{border-color:rgba(240,80,80,.18);background:linear-gradient(135deg,rgba(240,80,80,.06),rgba(240,80,80,.02))}
+    .room-left{display:flex;align-items:center;gap:14px}
+    .room-number{width:40px;height:40px;border-radius:14px;background:linear-gradient(135deg,#1f2a44,#121826);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#c7d2ea;letter-spacing:1px}
+    .room-meta{display:flex;flex-direction:column;gap:4px}
+    .room-name{font-size:14px;color:#e6ecf7}
+    .room-desc{font-size:11px;color:#5d6780}
+    .status-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 10px rgba(52,211,153,.6);margin-right:8px}
+    .status-dot.full{background:#f87171;box-shadow:0 0 10px rgba(248,113,113,.5)}
+    .room-status{display:flex;align-items:center;font-size:12px;color:#7f8aa3}
+    .enter-btn{border:1px solid rgba(120,180,255,.25);background:linear-gradient(135deg,rgba(90,140,255,.12),rgba(90,140,255,.04));color:#9cb8ff;padding:8px 14px;border-radius:12px;font-size:12px;letter-spacing:2px;cursor:pointer;font-family:inherit;transition:all .25s ease}
+    .enter-btn:hover{border-color:rgba(120,180,255,.45);background:linear-gradient(135deg,rgba(90,140,255,.2),rgba(90,140,255,.08))}
+    .enter-btn:disabled{border-color:rgba(255,255,255,.06);background:transparent;color:#4a5468;cursor:not-allowed}
+    .admin-btn-wrap{max-width:520px;margin:20px auto 0;text-align:center}
+    .admin-btn{border:1px solid rgba(150,160,180,.2);background:rgba(255,255,255,.02);color:#9aa5c0;padding:10px 20px;border-radius:10px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .2s ease}
+    .admin-btn:hover{border-color:rgba(150,160,180,.4);background:rgba(255,255,255,.04)}
+    .rule-box{max-width:520px;margin:24px auto 0;padding:16px 18px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);font-size:11px;line-height:1.8;color:#6b7590}
+    .rule-box h4{color:#9aa5c0;font-size:12px;margin-bottom:8px;font-weight:500}
+    .rule-box ul{list-style:none;padding-left:0}
+    .rule-box li{padding-left:14px;position:relative;margin-bottom:4px}
+    .rule-box li::before{content:"·";position:absolute;left:0;color:#4a5468}
+    .disclaimer{font-size:11px;color:#4a5468;text-align:center;padding:20px 12px 12px;line-height:1.5}
+    .nav-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.04);background:rgba(7,8,13,.6);backdrop-filter:blur(10px);position:relative;z-index:10}
+    .nav-title{font-size:12px;letter-spacing:3px;color:#7f8aa3}
+    .nav-room{font-size:14px;color:#e6ecf7;font-weight:600}
+    .nav-status{display:flex;align-items:center;font-size:11px;color:#7f8aa3}
+    .status-dot-nav{width:8px;height:8px;border-radius:50%;background:#f5c542;box-shadow:0 0 10px rgba(245,197,66,.5);margin-right:8px}
+    .status-dot-nav.online{background:#34d399;box-shadow:0 0 10px rgba(52,211,153,.6)}
+    .back-btn{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:#9ca6bd;padding:7px 12px;border-radius:10px;font-size:11px;letter-spacing:2px;cursor:pointer;font-family:inherit}
+    #chat{flex:1;padding:18px 16px 14px;overflow-y:auto}
+    .tip-card{max-width:72%;margin:18px auto;padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);text-align:center}
+    .tip-title{font-size:13px;color:#e6ecf7;margin-bottom:4px;letter-spacing:1px}
+    .tip-desc{font-size:11px;color:#5d6780}
+    .row{display:flex;margin-bottom:14px}
+    .row.l{justify-content:flex-start}
+    .row.r{justify-content:flex-end}
+    .bubble{max-width:74%;padding:11px 14px;border-radius:18px;font-size:14px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap}
+    .l .bubble{background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.06);color:#d8deea;border-top-left-radius:6px}
+    .r .bubble{background:linear-gradient(135deg,#2f4472,#203157);border:1px solid rgba(120,180,255,.18);color:#eaf1ff;border-top-right-radius:6px;box-shadow:0 4px 18px rgba(32,49,87,.45)}
+    #inputBox{display:flex;gap:10px;padding:12px 14px 16px;border-top:1px solid rgba(255,255,255,.04);background:rgba(7,8,13,.6)}
+    #txt{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#e6ecf7;padding:12px 14px;border-radius:20px;outline:none;font-size:14px;font-family:inherit}
+    #txt::placeholder{color:#4a5468}
+    #txt:disabled{opacity:.4}
+    #send{width:44px;height:44px;border-radius:50%;border:none;background:linear-gradient(135deg,#4f78d1,#3657a8);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(54,87,168,.45)}
+    #send:disabled{background:rgba(255,255,255,.06);color:#4a5468;box-shadow:none;cursor:not-allowed}
+    .send-icon{width:18px;height:18px}
+    #chat::-webkit-scrollbar{width:4px}
+    #chat::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:4px}
+    .pwd-modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:99}
+    .pwd-modal{width:320px;background:#121826;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:24px}
+    .pwd-modal h3{color:#e6ecf7;font-size:15px;margin-bottom:16px;text-align:center;font-weight:500}
+    .pwd-modal input{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#e6ecf7;padding:12px;border-radius:10px;font-size:14px;outline:none;margin-bottom:16px;text-align:center;letter-spacing:2px}
+    .pwd-modal .pwd-list{margin-bottom:16px;line-height:2;font-size:13px;color:#c0cbe2}
+    .pwd-modal .pwd-list li{display:flex;justify-content:space-between;list-style:none;border-bottom:1px solid rgba(255,255,255,.04);padding:4px 0}
+    .pwd-modal-btns{display:flex;gap:10px}
+    .pwd-modal-btn{flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;cursor:pointer;font-family:inherit}
+    .btn-primary{background:linear-gradient(135deg,#4f78d1,#3657a8);color:#fff}
+    .btn-cancel{background:rgba(255,255,255,.04);color:#9ca6bd}
   </style>
 </head>
 <body>
@@ -342,11 +79,9 @@
     <div class="panel-title">私密空间</div>
     <div class="panel-subtitle">PRIVATE SPACE · 8 ROOMS · E2EE</div>
     <div id="list"></div>
-
     <div class="admin-btn-wrap">
       <button class="admin-btn" id="adminBtn">管理员查看今日房间密码</button>
     </div>
-
     <div class="rule-box">
       <h4>销毁规则</h4>
       <ul>
@@ -355,13 +90,9 @@
         <li>对方退出房间时，仅销毁本地聊天记录与密钥，保留在当前房间</li>
         <li>切换浏览器标签页/浏览器切至后台，本地会话记录与密钥自动销毁</li>
         <li>关闭浏览器标签页，所有会话数据自动从内存清除，不留痕迹</li>
-        <li>所有明文仅存在双方浏览器内存，不写入本地缓存、不落地存储</li>
       </ul>
     </div>
-
-    <div class="disclaimer">
-      本服务不会保存聊天记录，退出即销毁！所有消息采用端到端加密，服务器无法读取内容。
-    </div>
+    <div class="disclaimer">本服务不会保存聊天记录，退出即销毁！所有消息采用端到端加密，服务器无法读取内容。</div>
   </div>
 
   <div class="nav-bar">
@@ -379,7 +110,7 @@
   <div id="chat"></div>
 
   <div id="inputBox">
-    <input id="txt" placeholder="等待对方接入..." maxlength="500" />
+    <input id="txt" placeholder="等待对方接入..." maxlength="500">
     <button id="send" disabled>
       <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -390,18 +121,8 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    // 生成固定客户端ID（同一个标签页永远不变，关闭即销毁）
-    let clientId = sessionStorage.getItem('chat_client_id');
-    if (!clientId) {
-      clientId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-      sessionStorage.setItem('chat_client_id', clientId);
-    }
-
-    // 连接时带上固定客户端ID
-    const socket = io({ 
-      transports: ['websocket'],
-      query: { clientId: clientId }
-    });
+    // 强制websocket连接，杜绝长轮询升级导致的重复连接
+    const socket = io({ transports: ['websocket'] });
 
     const roomPanel = document.getElementById('roomPanel');
     const listWrap = document.getElementById('list');
@@ -417,23 +138,20 @@
     let inRoom = false;
     let sharedKey = null;
     let myPublicKey = null;
-    let currentModal = null;
-    let joinLocked = false;
+    let modal = null;
+    let joinLock = false;
 
-    // ========== 加密逻辑 ==========
+    // ========== 端到端加密逻辑 ==========
     function genKeyPair() {
       const ec = new elliptic.ec('p256');
       const keyPair = ec.genKeyPair();
-      const pubRaw = keyPair.getPublic('hex');
-      return { keyPair, pubRaw: pubRaw };
+      return { keyPair, pubRaw: keyPair.getPublic('hex') };
     }
-
     function deriveSharedKey(keyPair, remotePubHex) {
       const shared = keyPair.derive(elliptic.curves.p256.g.fromHex(remotePubHex));
       const keyHex = shared.toString(16).padStart(64, '0').slice(0, 64);
       return CryptoJS.enc.Hex.parse(keyHex);
     }
-
     function encryptMsg(plaintext, key) {
       const iv = CryptoJS.lib.WordArray.random(16);
       const cipher = CryptoJS.AES.encrypt(plaintext, key, {
@@ -443,7 +161,6 @@
       });
       return iv.toString(CryptoJS.enc.Base64) + ':' + cipher.toString();
     }
-
     function decryptMsg(cipherStr, key) {
       try {
         const parts = cipherStr.split(':');
@@ -460,109 +177,82 @@
       }
     }
 
-    function destroyLocalData() {
+    // 本地销毁所有数据
+    function clearLocalData() {
       sharedKey = null;
       myPublicKey = null;
       chat.innerHTML = '';
       txt.value = '';
     }
 
-    // ========== 房间列表 ==========
-    function renderDefault() {
+    // ========== 渲染房间列表 ==========
+    function renderRoomList() {
       listWrap.innerHTML = '';
       for (let i = 1; i <= 8; i++) {
         const wrap = document.createElement('div');
         wrap.className = 'room-item';
-        wrap.id = 'r'+i;
-
-        const leftDiv = document.createElement('div');
-        leftDiv.className = 'room-left';
-        const numBox = document.createElement('div');
-        numBox.className = 'room-number';
-        numBox.textContent = i;
-        const metaDiv = document.createElement('div');
-        metaDiv.className = 'room-meta';
-        const nameDiv = document.createElement('div');
-        nameDiv.className = 'room-name';
-        nameDiv.textContent = '房间 '+i;
-        const descDiv = document.createElement('div');
-        descDiv.className = 'room-desc';
-        descDiv.textContent = '私密双人信道';
-        metaDiv.appendChild(nameDiv);
-        metaDiv.appendChild(descDiv);
-        leftDiv.appendChild(numBox);
-        leftDiv.appendChild(metaDiv);
-
-        const rightWrap = document.createElement('div');
-        rightWrap.style.display = "flex";
-        rightWrap.style.alignItems = "center";
-        rightWrap.style.gap = "12px";
-
-        const statusBox = document.createElement('div');
-        statusBox.className = 'room-status';
-        const dot = document.createElement('span');
-        dot.className = 'status-dot';
-        statusBox.appendChild(dot);
-        statusBox.appendChild(document.createTextNode("空闲"));
-
-        const enterBtn = document.createElement('button');
-        enterBtn.className = 'enter-btn';
-        enterBtn.textContent = "进入";
-        enterBtn.onclick = ()=>openRoomPwdInput(i);
-
-        rightWrap.appendChild(statusBox);
-        rightWrap.appendChild(enterBtn);
-        wrap.appendChild(leftDiv);
-        wrap.appendChild(rightWrap);
+        wrap.id = 'r' + i;
+        wrap.innerHTML = `
+          <div class="room-left">
+            <div class="room-number">${i}</div>
+            <div class="room-meta">
+              <div class="room-name">房间 ${i}</div>
+              <div class="room-desc">私密双人信道</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="room-status"><span class="status-dot"></span>空闲</div>
+            <button class="enter-btn">进入</button>
+          </div>`;
+        wrap.querySelector('.enter-btn').onclick = () => openRoomPwdModal(i);
         listWrap.appendChild(wrap);
       }
     }
-    renderDefault();
+    renderRoomList();
 
-    // ========== 密码弹窗 ==========
-    function openRoomPwdInput(roomNum) {
-      if (joinLocked) return;
-      if (currentModal) currentModal.remove();
+    // ========== 房间密码弹窗 ==========
+    function openRoomPwdModal(roomNum) {
+      if (joinLock) return;
+      if (modal) modal.remove();
 
       const mask = document.createElement('div');
       mask.className = 'pwd-modal-mask';
       mask.innerHTML = `
         <div class="pwd-modal">
           <h3>请输入房间${roomNum}密码</h3>
-          <input type="text" id="roomPwdInput" maxlength="4" placeholder="4位数字密码" inputmode="numeric" />
+          <input id="pwdInput" maxlength="4" placeholder="4位数字密码" inputmode="numeric">
           <div class="pwd-modal-btns">
-            <button class="pwd-modal-btn btn-cancel" id="cancelPwd">取消</button>
-            <button class="pwd-modal-btn btn-primary" id="confirmPwd">确认进入</button>
+            <button class="pwd-modal-btn btn-cancel" id="cancelBtn">取消</button>
+            <button class="pwd-modal-btn btn-primary" id="okBtn">确认进入</button>
           </div>
-        </div>
-      `;
+        </div>`;
       document.body.appendChild(mask);
-      currentModal = mask;
+      modal = mask;
 
-      const input = mask.querySelector('#roomPwdInput');
-      const confirmBtn = mask.querySelector('#confirmPwd');
+      const input = mask.querySelector('#pwdInput');
+      const okBtn = mask.querySelector('#okBtn');
       input.focus();
 
-      mask.querySelector('#cancelPwd').onclick = ()=> {
+      mask.querySelector('#cancelBtn').onclick = () => {
         mask.remove();
-        currentModal = null;
+        modal = null;
       };
       
       function submitJoin() {
-        if (joinLocked) return;
+        if (joinLock) return;
         const pwd = input.value.trim();
-        if (pwd.length !== 4 || !/^\d{4}$/.test(pwd)) {
+        if (!/^\d{4}$/.test(pwd)) {
           alert('请输入4位数字密码');
           return;
         }
-        joinLocked = true;
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = '进入中...';
+        joinLock = true;
+        okBtn.disabled = true;
+        okBtn.textContent = '进入中...';
         socket.emit('join', { roomNum: roomNum, password: pwd });
       }
 
-      confirmBtn.onclick = submitJoin;
-      input.addEventListener('keydown', e=> {
+      okBtn.onclick = submitJoin;
+      input.addEventListener('keydown', e => {
         if (e.key === 'Enter') {
           e.preventDefault();
           submitJoin();
@@ -572,46 +262,46 @@
 
     // ========== 管理员入口 ==========
     adminBtn.onclick = () => {
-      if (currentModal) currentModal.remove();
+      if (modal) modal.remove();
 
       const mask = document.createElement('div');
       mask.className = 'pwd-modal-mask';
       mask.innerHTML = `
         <div class="pwd-modal">
           <h3>请输入管理员密码</h3>
-          <input type="password" id="adminPwdInput" placeholder="请输入总密码" />
+          <input type="password" id="adminInput" placeholder="请输入总密码">
           <div class="pwd-modal-btns">
             <button class="pwd-modal-btn btn-cancel" id="cancelAdmin">取消</button>
-            <button class="pwd-modal-btn btn-primary" id="confirmAdmin">确认</button>
+            <button class="pwd-modal-btn btn-primary" id="okAdmin">确认</button>
           </div>
-        </div>
-      `;
+        </div>`;
       document.body.appendChild(mask);
-      currentModal = mask;
-      const input = mask.querySelector('#adminPwdInput');
+      modal = mask;
+
+      const input = mask.querySelector('#adminInput');
       input.focus();
 
-      mask.querySelector('#cancelAdmin').onclick = ()=> {
+      mask.querySelector('#cancelAdmin').onclick = () => {
         mask.remove();
-        currentModal = null;
+        modal = null;
       };
-      mask.querySelector('#confirmAdmin').onclick = ()=> {
+      mask.querySelector('#okAdmin').onclick = () => {
         const pwd = input.value.trim();
         if (!pwd) return;
-        socket.emit('admin_get_passwords', pwd);
+        socket.emit('admin_get', pwd);
         mask.remove();
-        currentModal = null;
+        modal = null;
       };
 
-      input.addEventListener('keydown', e=> {
-        if (e.key === 'Enter') mask.querySelector('#confirmAdmin').click();
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') mask.querySelector('#okAdmin').click();
       });
     };
 
-    socket.on('admin_passwords_result', (res) => {
-      if (!res.success) return;
+    // 管理员密码查询结果
+    socket.on('admin_result', list => {
       let html = '<ul class="pwd-list">';
-      res.list.forEach((pwd, idx) => {
+      list.forEach((pwd, idx) => {
         html += `<li><span>房间 ${idx+1}</span><span>${pwd}</span></li>`;
       });
       html += '</ul>';
@@ -623,47 +313,48 @@
           <h3>今日房间密码</h3>
           ${html}
           <div class="pwd-modal-btns">
-            <button class="pwd-modal-btn btn-primary" style="flex:1" id="closePwdList">我知道了</button>
+            <button class="pwd-modal-btn btn-primary" style="flex:1" id="closeBtn">我知道了</button>
           </div>
-        </div>
-      `;
+        </div>`;
       document.body.appendChild(mask);
-      currentModal = mask;
-      mask.querySelector('#closePwdList').onclick = ()=> {
+      modal = mask;
+
+      mask.querySelector('#closeBtn').onclick = () => {
         mask.remove();
-        currentModal = null;
+        modal = null;
       };
     });
 
     // ========== 房间状态更新 ==========
     socket.on('room_status', arr => {
       arr.forEach(v => {
-        const dom = document.getElementById('r'+v.num);
+        const dom = document.getElementById('r' + v.num);
         if (!dom) return;
         dom.className = 'room-item ' + (v.full ? 'room-full' : '');
-        const btn = dom.querySelector('button');
-        const statText = dom.querySelector('.room-status');
-        const dot = statText.querySelector('.status-dot');
-        if(v.full) {
-          statText.childNodes[1].textContent = "已满";
-          dot.classList.add("full");
-          btn.textContent = "已满";
+        const btn = dom.querySelector('.enter-btn');
+        const dot = dom.querySelector('.status-dot');
+        const text = dom.querySelector('.room-status');
+        if (v.full) {
+          text.childNodes[1].textContent = '已满';
+          dot.classList.add('full');
+          btn.textContent = '已满';
           btn.disabled = true;
           btn.onclick = null;
         } else {
-          statText.childNodes[1].textContent = "空闲";
-          dot.classList.remove("full");
-          btn.textContent = "进入";
+          text.childNodes[1].textContent = '空闲';
+          dot.classList.remove('full');
+          btn.textContent = '进入';
           btn.disabled = false;
-          btn.onclick = ()=>openRoomPwdInput(v.num);
+          btn.onclick = () => openRoomPwdModal(v.num);
         }
       });
     });
 
     // ========== 交互逻辑 ==========
+    // 返回按钮
     backBtn.addEventListener('click', () => {
       socket.emit('leave_room');
-      destroyLocalData();
+      clearLocalData();
       inRoom = false;
       txt.disabled = true;
       txt.placeholder = '等待对方接入...';
@@ -674,18 +365,19 @@
       navDot.classList.remove('online');
     });
 
+    // 切后台自动销毁记录
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && inRoom) {
-        destroyLocalData();
+        clearLocalData();
       }
     });
 
-    // 进入房间成功（释放提交锁）
+    // 进入房间成功（等待对方）
     socket.on('wait', () => {
-      joinLocked = false;
-      if (currentModal) {
-        currentModal.remove();
-        currentModal = null;
+      joinLock = false;
+      if (modal) {
+        modal.remove();
+        modal = null;
       }
 
       inRoom = true;
@@ -694,17 +386,12 @@
       navStatusText.textContent = '等待对方';
       navDot.classList.remove('online');
       chat.innerHTML = '';
+
       const tip = document.createElement('div');
       tip.className = 'tip-card';
-      const tipTitle = document.createElement('div');
-      tipTitle.className = 'tip-title';
-      tipTitle.textContent = '已进入房间';
-      const tipDesc = document.createElement('div');
-      tipDesc.className = 'tip-desc';
-      tipDesc.textContent = '等待另一个人加入，自动建立加密信道';
-      tip.appendChild(tipTitle);
-      tip.appendChild(tipDesc);
+      tip.innerHTML = '<div class="tip-title">已进入房间</div><div class="tip-desc">等待另一个人加入，自动建立加密信道</div>';
       chat.appendChild(tip);
+
       txt.disabled = true;
       txt.placeholder = '等待对方接入...';
       sendBtn.disabled = true;
@@ -714,17 +401,16 @@
       socket.emit('key_exchange', { pub: kp.pubRaw });
     });
 
-    // 双方连接成功（释放提交锁）
+    // 双方连接成功
     socket.on('online', () => {
-      joinLocked = false;
-      if (currentModal) {
-        currentModal.remove();
-        currentModal = null;
+      joinLock = false;
+      if (modal) {
+        modal.remove();
+        modal = null;
       }
 
-      if(!myPublicKey) {
-        const kp = genKeyPair();
-        myPublicKey = kp;
+      if (!myPublicKey) {
+        myPublicKey = genKeyPair();
       }
       socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
 
@@ -734,16 +420,10 @@
       navStatusText.textContent = '已连接(E2EE)';
       navDot.classList.add('online');
       chat.innerHTML = '';
+
       const tip = document.createElement('div');
       tip.className = 'tip-card';
-      const tipTitle = document.createElement('div');
-      tipTitle.className = 'tip-title';
-      tipTitle.textContent = '加密信道已建立';
-      const tipDesc = document.createElement('div');
-      tipDesc.className = 'tip-desc';
-      tipDesc.textContent = '端到端加密，服务器无法读取消息';
-      tip.appendChild(tipTitle);
-      tip.appendChild(tipDesc);
+      tip.innerHTML = '<div class="tip-title">加密信道已建立</div><div class="tip-desc">端到端加密，服务器无法读取消息</div>';
       chat.appendChild(tip);
 
       txt.disabled = false;
@@ -752,53 +432,45 @@
       txt.focus();
     });
 
-    // 错误提示（释放提交锁）
-    socket.on('tip', msg => {
-      joinLocked = false;
-      alert(msg);
-    });
-
-    socket.on('key_exchange', (payload) => {
-      if(!myPublicKey) return;
+    // 密钥交换
+    socket.on('key_exchange', payload => {
+      if (!myPublicKey) return;
       sharedKey = deriveSharedKey(myPublicKey.keyPair, payload.pub);
     });
 
+    // 对方退出通知
     socket.on('partner_leave', () => {
-      destroyLocalData();
+      clearLocalData();
       navStatusText.textContent = '对方已退出';
       navDot.classList.remove('online');
+
       const tip = document.createElement('div');
       tip.className = 'tip-card';
-      const tipTitle = document.createElement('div');
-      tipTitle.className = 'tip-title';
-      tipTitle.textContent = '对方已退出';
-      const tipDesc = document.createElement('div');
-      tipDesc.className = 'tip-desc';
-      tipDesc.textContent = '本地记录已自动销毁';
-      tip.appendChild(tipTitle);
-      tip.appendChild(tipDesc);
+      tip.innerHTML = '<div class="tip-title">对方已退出</div><div class="tip-desc">本地记录已自动销毁</div>';
       chat.appendChild(tip);
+
       txt.disabled = true;
       txt.placeholder = '对方已退出';
       sendBtn.disabled = true;
     });
 
-    socket.on('recv_cipher', (cipher) => {
+    // 收到消息
+    socket.on('recv_cipher', cipher => {
       if (!inRoom || !sharedKey) return;
-      const plain = decryptMsg(cipher, sharedKey);
-      addMsg(plain, false);
+      addMsg(decryptMsg(cipher, sharedKey), false);
     });
 
+    // 发送消息
     sendBtn.addEventListener('click', () => {
       const val = txt.value.trim();
       if (!val || !inRoom || !sharedKey) return;
-      const cipher = encryptMsg(val, sharedKey);
-      socket.emit('send_cipher', cipher);
+      socket.emit('send_cipher', encryptMsg(val, sharedKey));
       addMsg(val, true);
       txt.value = '';
       chat.scrollTop = chat.scrollHeight;
     });
 
+    // 回车发送
     txt.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -806,6 +478,7 @@
       }
     });
 
+    // 添加消息气泡
     function addMsg(text, isMe) {
       const row = document.createElement('div');
       row.className = 'row ' + (isMe ? 'r' : 'l');
@@ -817,9 +490,14 @@
       chat.scrollTop = chat.scrollHeight;
     }
 
-    window.addEventListener('beforeunload', () => {
-      destroyLocalData();
+    // 通用提示
+    socket.on('tip', msg => {
+      joinLock = false;
+      alert(msg);
     });
+
+    // 关闭页面销毁数据
+    window.addEventListener('beforeunload', clearLocalData);
   </script>
 </body>
 </html>
