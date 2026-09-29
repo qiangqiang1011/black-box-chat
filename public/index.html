@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>私密空间</title>
+  <!-- 纯JS加密库，HTTP环境全平台兼容 -->
+  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -102,6 +105,29 @@
       color: #4a5468;
       cursor: not-allowed;
     }
+
+    /* 管理员按钮 */
+    .admin-btn-wrap {
+      max-width: 520px;
+      margin: 20px auto 0;
+      text-align: center;
+    }
+    .admin-btn {
+      border: 1px solid rgba(150, 160, 180, 0.2);
+      background: rgba(255,255,255,0.02);
+      color: #9aa5c0;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+    .admin-btn:hover {
+      border-color: rgba(150, 160, 180, 0.4);
+      background: rgba(255,255,255,0.04);
+    }
+
     .rule-box {
       max-width: 520px;
       margin: 24px auto 0;
@@ -244,6 +270,74 @@
     .send-icon { width: 18px; height: 18px; }
     #chat::-webkit-scrollbar { width: 4px; }
     #chat::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+
+    /* 密码弹窗 */
+    .pwd-modal-mask {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 99;
+    }
+    .pwd-modal {
+      width: 320px;
+      background: #121826;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+    }
+    .pwd-modal h3 {
+      color: #e6ecf7;
+      font-size: 15px;
+      margin-bottom: 16px;
+      text-align: center;
+      font-weight: 500;
+    }
+    .pwd-modal input {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #e6ecf7;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      margin-bottom: 16px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    .pwd-modal .pwd-list {
+      margin-bottom: 16px;
+      line-height: 2;
+      font-size: 13px;
+      color: #c0cbe2;
+    }
+    .pwd-modal .pwd-list li {
+      display: flex;
+      justify-content: space-between;
+      list-style: none;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      padding: 4px 0;
+    }
+    .pwd-modal-btns {
+      display: flex; gap: 10px;
+    }
+    .pwd-modal-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #4f78d1, #3657a8);
+      color: #fff;
+    }
+    .btn-cancel {
+      background: rgba(255,255,255,0.04);
+      color: #9ca6bd;
+    }
   </style>
 </head>
 <body>
@@ -251,6 +345,11 @@
     <div class="panel-title">私密空间</div>
     <div class="panel-subtitle">PRIVATE SPACE · 8 ROOMS · E2EE</div>
     <div id="list"></div>
+
+    <!-- 管理员入口 -->
+    <div class="admin-btn-wrap">
+      <button class="admin-btn" id="adminBtn">管理员查看今日房间密码</button>
+    </div>
 
     <div class="rule-box">
       <h4>销毁规则</h4>
@@ -306,62 +405,47 @@
     const navRoom = document.getElementById('navRoom');
     const navStatusText = document.getElementById('navStatusText');
     const navDot = document.getElementById('navDot');
+    const adminBtn = document.getElementById('adminBtn');
 
     let inRoom = false;
     let sharedKey = null;
     let myPublicKey = null;
 
-    // 生成密钥对
-    async function genKeyPair() {
-      const keyPair = await window.crypto.subtle.generateKey(
-        { name: "ECDH", namedCurve: "P-256" },
-        true,
-        ["deriveKey"]
-      );
-      const pubRaw = await window.crypto.subtle.exportKey("raw", keyPair.publicKey);
-      return { keyPair, pubRaw: btoa(String.fromCharCode(...new Uint8Array(pubRaw))) };
+    // ========== 纯JS加密，HTTP环境全平台通用 ==========
+    function genKeyPair() {
+      const ec = new elliptic.ec('p256');
+      const keyPair = ec.genKeyPair();
+      const pubRaw = keyPair.getPublic('hex');
+      return { keyPair, pubRaw: pubRaw };
     }
 
-    // 生成共享密钥
-    async function deriveSharedKey(keyPair, remotePubB64) {
-      const remoteRaw = Uint8Array.from(atob(remotePubB64), c => c.charCodeAt(0));
-      const remotePub = await window.crypto.subtle.importKey(
-        "raw", remoteRaw, { name: "ECDH", namedCurve: "P-256" }, false, []
-      );
-      const aesKey = await window.crypto.subtle.deriveKey(
-        { name: "ECDH", public: remotePub },
-        keyPair.privateKey,
-        { name: "AES-GCM", length: 256 },
-        false,
-        ["encrypt", "decrypt"]
-      );
-      return aesKey;
+    function deriveSharedKey(keyPair, remotePubHex) {
+      const shared = keyPair.derive(elliptic.curves.p256.g.fromHex(remotePubHex));
+      const keyHex = shared.toString(16).padStart(64, '0').slice(0, 64);
+      return CryptoJS.enc.Hex.parse(keyHex);
     }
 
-    // 加密消息
-    async function encryptMsg(plaintext, key) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(plaintext);
-      const iv = window.crypto.getRandomValues(new Uint8Array(12));
-      const cipher = await window.crypto.subtle.encrypt(
-        { name: "AES-GCM", iv }, key, data
-      );
-      const combined = new Uint8Array(iv.byteLength + cipher.byteLength);
-      combined.set(iv, 0);
-      combined.set(new Uint8Array(cipher), iv.byteLength);
-      return btoa(String.fromCharCode(...combined));
+    function encryptMsg(plaintext, key) {
+      const iv = CryptoJS.lib.WordArray.random(16);
+      const cipher = CryptoJS.AES.encrypt(plaintext, key, {
+        iv: iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      });
+      return iv.toString(CryptoJS.enc.Base64) + ':' + cipher.toString();
     }
 
-    // 解密消息
-    async function decryptMsg(cipherB64, key) {
+    function decryptMsg(cipherStr, key) {
       try {
-        const raw = Uint8Array.from(atob(cipherB64), c => c.charCodeAt(0));
-        const iv = raw.slice(0,12);
-        const ciphertext = raw.slice(12);
-        const plain = await window.crypto.subtle.decrypt(
-          { name: "AES-GCM", iv }, key, ciphertext
-        );
-        return new TextDecoder().decode(plain);
+        const parts = cipherStr.split(':');
+        const iv = CryptoJS.enc.Base64.parse(parts[0]);
+        const ciphertext = parts[1];
+        const plain = CryptoJS.AES.decrypt(ciphertext, key, {
+          iv: iv,
+          mode: CryptoJS.mode.CBC,
+          padding: CryptoJS.pad.Pkcs7
+        });
+        return plain.toString(CryptoJS.enc.Utf8);
       }catch(e){
         return "[解密失败]";
       }
@@ -416,7 +500,7 @@
         const enterBtn = document.createElement('button');
         enterBtn.className = 'enter-btn';
         enterBtn.textContent = "进入";
-        enterBtn.onclick = ()=>joinRoom(i);
+        enterBtn.onclick = ()=>openRoomPwdInput(i);
 
         rightWrap.appendChild(statusBox);
         rightWrap.appendChild(enterBtn);
@@ -426,6 +510,95 @@
       }
     }
     renderDefault();
+
+    // 弹出房间密码输入框
+    function openRoomPwdInput(roomNum) {
+      const mask = document.createElement('div');
+      mask.className = 'pwd-modal-mask';
+      mask.innerHTML = `
+        <div class="pwd-modal">
+          <h3>请输入房间${roomNum}密码</h3>
+          <input type="text" id="roomPwdInput" maxlength="4" placeholder="4位数字密码" />
+          <div class="pwd-modal-btns">
+            <button class="pwd-modal-btn btn-cancel" id="cancelPwd">取消</button>
+            <button class="pwd-modal-btn btn-primary" id="confirmPwd">确认进入</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(mask);
+      const input = mask.querySelector('#roomPwdInput');
+      input.focus();
+
+      mask.querySelector('#cancelPwd').onclick = ()=> mask.remove();
+      mask.querySelector('#confirmPwd').onclick = ()=> {
+        const pwd = input.value.trim();
+        if (pwd.length !== 4) {
+          alert('请输入4位数字密码');
+          return;
+        }
+        socket.emit('join', { roomNum, password: pwd });
+        mask.remove();
+      };
+
+      input.addEventListener('keydown', e=> {
+        if (e.key === 'Enter') mask.querySelector('#confirmPwd').click();
+      });
+    }
+
+    // 管理员密码弹窗
+    adminBtn.onclick = () => {
+      const mask = document.createElement('div');
+      mask.className = 'pwd-modal-mask';
+      mask.innerHTML = `
+        <div class="pwd-modal">
+          <h3>请输入管理员密码</h3>
+          <input type="password" id="adminPwdInput" placeholder="请输入总密码" />
+          <div class="pwd-modal-btns">
+            <button class="pwd-modal-btn btn-cancel" id="cancelAdmin">取消</button>
+            <button class="pwd-modal-btn btn-primary" id="confirmAdmin">确认</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(mask);
+      const input = mask.querySelector('#adminPwdInput');
+      input.focus();
+
+      mask.querySelector('#cancelAdmin').onclick = ()=> mask.remove();
+      mask.querySelector('#confirmAdmin').onclick = ()=> {
+        const pwd = input.value.trim();
+        if (!pwd) return;
+        socket.emit('admin_get_passwords', pwd);
+        mask.remove();
+      };
+
+      input.addEventListener('keydown', e=> {
+        if (e.key === 'Enter') mask.querySelector('#confirmAdmin').click();
+      });
+    };
+
+    // 接收管理员密码查询结果
+    socket.on('admin_passwords_result', (res) => {
+      if (!res.success) return;
+      let html = '<ul class="pwd-list">';
+      res.list.forEach((pwd, idx) => {
+        html += `<li><span>房间 ${idx+1}</span><span>${pwd}</span></li>`;
+      });
+      html += '</ul>';
+
+      const mask = document.createElement('div');
+      mask.className = 'pwd-modal-mask';
+      mask.innerHTML = `
+        <div class="pwd-modal">
+          <h3>今日房间密码</h3>
+          ${html}
+          <div class="pwd-modal-btns">
+            <button class="pwd-modal-btn btn-primary" style="flex:1" id="closePwdList">我知道了</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(mask);
+      mask.querySelector('#closePwdList').onclick = ()=> mask.remove();
+    });
 
     // 更新房间状态
     socket.on('room_status', arr => {
@@ -447,14 +620,10 @@
           dot.classList.remove("full");
           btn.textContent = "进入";
           btn.disabled = false;
-          btn.onclick = ()=>joinRoom(v.num);
+          btn.onclick = ()=>openRoomPwdInput(v.num);
         }
       });
     });
-
-    function joinRoom(num) {
-      socket.emit('join', num);
-    }
 
     // 点击返回：销毁本地记录，退出房间回到列表
     backBtn.addEventListener('click', () => {
@@ -478,7 +647,7 @@
     });
 
     // 第一个进入房间
-    socket.on('wait', async () => {
+    socket.on('wait', () => {
       inRoom = true;
       roomPanel.style.display = 'none';
       navRoom.textContent = '房间 ' + socket.currentRoom;
@@ -500,15 +669,15 @@
       txt.placeholder = '等待对方接入...';
       sendBtn.disabled = true;
 
-      const kp = await genKeyPair();
+      const kp = genKeyPair();
       myPublicKey = kp;
       socket.emit('key_exchange', { pub: kp.pubRaw });
     });
 
     // 双方连接成功
-    socket.on('online', async () => {
+    socket.on('online', () => {
       if(!myPublicKey){
-        const kp = await genKeyPair();
+        const kp = genKeyPair();
         myPublicKey = kp;
       }
       socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
@@ -538,9 +707,9 @@
     });
 
     // 收到对方公钥
-    socket.on('key_exchange', async (payload) => {
+    socket.on('key_exchange', (payload) => {
       if(!myPublicKey) return;
-      sharedKey = await deriveSharedKey(myPublicKey.keyPair, payload.pub);
+      sharedKey = deriveSharedKey(myPublicKey.keyPair, payload.pub);
     });
 
     // 对方退出：仅销毁本地记录，不退出房间
@@ -565,17 +734,17 @@
     });
 
     // 收到消息
-    socket.on('recv_cipher', async (cipher) => {
+    socket.on('recv_cipher', (cipher) => {
       if (!inRoom || !sharedKey) return;
-      const plain = await decryptMsg(cipher, sharedKey);
+      const plain = decryptMsg(cipher, sharedKey);
       addMsg(plain, false);
     });
 
     // 发送消息
-    sendBtn.addEventListener('click', async () => {
+    sendBtn.addEventListener('click', () => {
       const val = txt.value.trim();
       if (!val || !inRoom || !sharedKey) return;
-      const cipher = await encryptMsg(val, sharedKey);
+      const cipher = encryptMsg(val, sharedKey);
       socket.emit('send_cipher', cipher);
       addMsg(val, true);
       txt.value = '';
