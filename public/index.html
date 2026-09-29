@@ -14,18 +14,15 @@
     .panel-subtitle{text-align:center;font-size:11px;color:#4a5468;margin-bottom:26px;letter-spacing:2px}
     .room-item{max-width:520px;margin:10px auto;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:16px 18px;transition:border-color .25s ease,transform .25s ease}
     .room-item:active{transform:scale(.985)}
-    .room-item.room-full{border-color:rgba(240,80,80,.18);background:linear-gradient(135deg,rgba(240,80,80,.06),rgba(240,80,80,.02))}
     .room-left{display:flex;align-items:center;gap:14px}
     .room-number{width:40px;height:40px;border-radius:14px;background:linear-gradient(135deg,#1f2a44,#121826);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#c7d2ea;letter-spacing:1px}
     .room-meta{display:flex;flex-direction:column;gap:4px}
     .room-name{font-size:14px;color:#e6ecf7}
-    .room-desc{font-size:11px;color:#5d6780}
-    .status-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 10px rgba(52,211,153,.6);margin-right:8px}
-    .status-dot.full{background:#f87171;box-shadow:0 0 10px rgba(248,113,113,.5)}
-    .room-status{display:flex;align-items:center;font-size:12px;color:#7f8aa3}
+    .room-status-right{display:flex;align-items:center;gap:10px}
+    .online-tag{display:flex;align-items:center;font-size:12px;color:#7f8aa3}
+    .online-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 10px rgba(52,211,153,.6);margin-right:6px}
     .enter-btn{border:1px solid rgba(120,180,255,.25);background:linear-gradient(135deg,rgba(90,140,255,.12),rgba(90,140,255,.04));color:#9cb8ff;padding:8px 14px;border-radius:12px;font-size:12px;letter-spacing:2px;cursor:pointer;font-family:inherit;transition:all .25s ease}
     .enter-btn:hover{border-color:rgba(120,180,255,.45);background:linear-gradient(135deg,rgba(90,140,255,.2),rgba(90,140,255,.08))}
-    .enter-btn:disabled{border-color:rgba(255,255,255,.06);background:transparent;color:#4a5468;cursor:not-allowed}
     .admin-btn-wrap{max-width:520px;margin:20px auto 0;text-align:center}
     .admin-btn{border:1px solid rgba(150,160,180,.2);background:rgba(255,255,255,.02);color:#9aa5c0;padding:10px 20px;border-radius:10px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .2s ease}
     .admin-btn:hover{border-color:rgba(150,160,180,.4);background:rgba(255,255,255,.04)}
@@ -46,12 +43,20 @@
     .tip-card{max-width:72%;margin:18px auto;padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);text-align:center}
     .tip-title{font-size:13px;color:#e6ecf7;margin-bottom:4px;letter-spacing:1px}
     .tip-desc{font-size:11px;color:#5d6780}
+    .online-dots{margin-top:8px;letter-spacing:4px}
+    .dot-item{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 3px}
+
+    /* 消息气泡颜色（纯颜色区分，无文字） */
     .row{display:flex;margin-bottom:14px}
     .row.l{justify-content:flex-start}
     .row.r{justify-content:flex-end}
-    .bubble{max-width:74%;padding:11px 14px;border-radius:18px;font-size:14px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap}
-    .l .bubble{background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.06);color:#d8deea;border-top-left-radius:6px}
-    .r .bubble{background:linear-gradient(135deg,#2f4472,#203157);border:1px solid rgba(120,180,255,.18);color:#eaf1ff;border-top-right-radius:6px;box-shadow:0 4px 18px rgba(32,49,87,.45)}
+    .bubble{max-width:74%;padding:11px 14px;border-radius:18px;font-size:14px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap;color:#fff}
+    .bubble.color-0{background:#4a7bd9}
+    .bubble.color-1{background:#2e9e62}
+    .bubble.color-2{background:#c9a231}
+    .bubble.color-3{background:#c24f82}
+    .bubble.color-4{background:#d17a38}
+
     #inputBox{display:flex;gap:10px;padding:12px 14px 16px;border-top:1px solid rgba(255,255,255,.04);background:rgba(7,8,13,.6)}
     #txt{flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#e6ecf7;padding:12px 14px;border-radius:20px;outline:none;font-size:14px;font-family:inherit}
     #txt::placeholder{color:#4a5468}
@@ -138,6 +143,29 @@
     let myPublicKey = null;
     let modal = null;
     let joinLock = false;
+    let memberMap = new Map();
+
+    const colors = ['color-0','color-1','color-2','color-3','color-4'];
+
+    function getColorIndex(id) {
+      let index = 0;
+      for (const mid of memberMap.keys()) {
+        if (mid === id) break;
+        index++;
+      }
+      return index % colors.length;
+    }
+
+    function renderOnlineDots() {
+      const dots = document.createElement('div');
+      dots.className = 'online-dots';
+      let i = 0;
+      for (const id of memberMap.keys()) {
+        dots.innerHTML += `<span class="dot-item ${colors[i % colors.length]}"></span>`;
+        i++;
+      }
+      return dots;
+    }
 
     // 加密逻辑
     function genKeyPair() {
@@ -147,7 +175,7 @@
     }
     function deriveSharedKey(keyPair, remotePubHex) {
       const shared = keyPair.derive(elliptic.curves.p256.g.fromHex(remotePubHex));
-      const keyHex = shared.toString(16).padStart(64, '0').slice(0, 64);
+      const keyHex = shared.toString(16).padStart(64,'0').slice(0,64);
       return CryptoJS.enc.Hex.parse(keyHex);
     }
     function encryptMsg(plaintext, key) {
@@ -180,6 +208,7 @@
       myPublicKey = null;
       chat.innerHTML = '';
       txt.value = '';
+      memberMap.clear();
     }
 
     // 渲染房间列表
@@ -194,11 +223,13 @@
             <div class="room-number">${i}</div>
             <div class="room-meta">
               <div class="room-name">房间 ${i}</div>
-              <div class="room-desc">私密双人信道</div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:12px">
-            <div class="room-status"><span class="status-dot"></span>空闲</div>
+          <div class="room-status-right">
+            <div class="online-tag">
+              <span class="online-dot"></span>
+              <span class="online-text">0人在线</span>
+            </div>
             <button class="enter-btn">进入</button>
           </div>`;
         wrap.querySelector('.enter-btn').onclick = () => openRoomPwdModal(i);
@@ -234,7 +265,7 @@
         mask.remove();
         modal = null;
       };
-      
+
       function submitJoin() {
         if (joinLock) return;
         const pwd = input.value.trim();
@@ -327,22 +358,15 @@
       arr.forEach(v => {
         const dom = document.getElementById('r' + v.num);
         if (!dom) return;
-        dom.className = 'room-item ' + (v.full ? 'room-full' : '');
-        const btn = dom.querySelector('.enter-btn');
-        const dot = dom.querySelector('.status-dot');
-        const text = dom.querySelector('.room-status');
-        if (v.full) {
-          text.childNodes[1].textContent = '已满';
-          dot.classList.add('full');
-          btn.textContent = '已满';
-          btn.disabled = true;
-          btn.onclick = null;
+        const text = dom.querySelector('.online-text');
+        const dot = dom.querySelector('.online-dot');
+        if (text) text.textContent = v.online + '人在线';
+        if (v.online > 0) {
+          dot.style.background = '#34d399';
+          dot.style.boxShadow = '0 0 10px rgba(52,211,153,.6)';
         } else {
-          text.childNodes[1].textContent = '空闲';
-          dot.classList.remove('full');
-          btn.textContent = '进入';
-          btn.disabled = false;
-          btn.onclick = () => openRoomPwdModal(v.num);
+          dot.style.background = '#4a5468';
+          dot.style.boxShadow = 'none';
         }
       });
     });
@@ -368,25 +392,29 @@
       }
     });
 
-    // 等待对方
-    socket.on('wait', () => {
+    // 进入房间成功
+    socket.on('wait', res => {
       joinLock = false;
       if (modal) { modal.remove(); modal = null; }
 
+      memberMap.clear();
+      memberMap.set(socket.id, { id: socket.id, self: true });
+
       inRoom = true;
       roomPanel.style.display = 'none';
-      navRoom.textContent = '房间 ' + socket.currentRoom;
-      navStatusText.textContent = '等待对方';
+      navRoom.textContent = '房间 ' + res.roomNum;
+      navStatusText.textContent = '已进入';
       navDot.classList.remove('online');
       chat.innerHTML = '';
 
       const tip = document.createElement('div');
       tip.className = 'tip-card';
-      tip.innerHTML = '<div class="tip-title">已进入房间</div><div class="tip-desc">等待另一个人加入，自动建立加密信道</div>';
+      tip.innerHTML = '<div class="tip-title">已进入房间</div><div class="tip-desc">有人加入会自动建立加密信道</div>';
+      tip.appendChild(renderOnlineDots());
       chat.appendChild(tip);
 
       txt.disabled = true;
-      txt.placeholder = '等待对方接入...';
+      txt.placeholder = '等待建立加密信道...';
       sendBtn.disabled = true;
 
       const kp = genKeyPair();
@@ -394,51 +422,55 @@
       socket.emit('key_exchange', { pub: kp.pubRaw });
     });
 
-    // 连接成功
-    socket.on('online', () => {
-      joinLock = false;
-      if (modal) { modal.remove(); modal = null; }
+    // 有人加入
+    socket.on('user_join', data => {
+      if (!inRoom) return;
 
-      if (!myPublicKey) myPublicKey = genKeyPair();
-      socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
+      if (!memberMap.has(data.id)) {
+        memberMap.set(data.id, { id: data.id, self: false });
+      }
 
-      inRoom = true;
-      roomPanel.style.display = 'none';
-      navRoom.textContent = '房间 ' + socket.currentRoom;
-      navStatusText.textContent = '已连接(E2EE)';
+      navStatusText.textContent = '在线 ' + data.count + ' 人';
       navDot.classList.add('online');
-      chat.innerHTML = '';
 
       const tip = document.createElement('div');
       tip.className = 'tip-card';
-      tip.innerHTML = '<div class="tip-title">加密信道已建立</div><div class="tip-desc">端到端加密，服务器无法读取消息</div>';
+      tip.innerHTML = `<div class="tip-title">有人加入</div><div class="tip-desc">当前在线 ${data.count} 人</div>`;
+      tip.appendChild(renderOnlineDots());
       chat.appendChild(tip);
-
-      txt.disabled = false;
-      txt.placeholder = '输入消息...';
-      sendBtn.disabled = false;
-      txt.focus();
+      chat.scrollTop = chat.scrollHeight;
     });
 
     // 密钥交换
     socket.on('key_exchange', payload => {
       if (!myPublicKey) return;
       sharedKey = deriveSharedKey(myPublicKey.keyPair, payload.pub);
+
+      if (inRoom && sharedKey) {
+        txt.disabled = false;
+        txt.placeholder = '输入消息...';
+        sendBtn.disabled = false;
+        txt.focus();
+      }
     });
 
     // 对方退出
-    socket.on('partner_leave', () => {
-      clearLocalData();
-      navStatusText.textContent = '对方已退出';
-      navDot.classList.remove('online');
+    socket.on('partner_leave', data => {
+      if (!inRoom) return;
+      if (data.id === socket.id) return;
+
+      memberMap.delete(data.id);
 
       const tip = document.createElement('div');
       tip.className = 'tip-card';
-      tip.innerHTML = '<div class="tip-title">对方已退出</div><div class="tip-desc">本地记录已自动销毁</div>';
+      tip.innerHTML = '<div class="tip-title">有人退出</div><div class="tip-desc">本地记录已销毁</div>';
+      tip.appendChild(renderOnlineDots());
       chat.appendChild(tip);
+      chat.scrollTop = chat.scrollHeight;
 
+      sharedKey = null;
       txt.disabled = true;
-      txt.placeholder = '对方已退出';
+      txt.placeholder = '等待新的连接...';
       sendBtn.disabled = true;
     });
 
@@ -466,12 +498,16 @@
       }
     });
 
+    // 纯颜色气泡，无任何名字
     function addMsg(text, isMe) {
       const row = document.createElement('div');
       row.className = 'row ' + (isMe ? 'r' : 'l');
+
       const bubble = document.createElement('div');
-      bubble.className = 'bubble';
+      const colorIdx = getColorIndex(isMe ? socket.id : null);
+      bubble.className = 'bubble ' + colors[colorIdx];
       bubble.textContent = text;
+
       row.appendChild(bubble);
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
