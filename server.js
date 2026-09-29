@@ -6,18 +6,17 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] }
+  cors: { origin: "*", methods: ["GET", "POST"] },
+  transports: ['polling', 'websocket']
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ========== 密码配置 ==========
-// 管理员总密码
 const ADMIN_PASSWORD = 'aaaa6666';
-// 存储当天8个房间的4位密码
 let roomPasswords = [];
 
-// 生成8个房间的4位随机数字密码（补前导零，固定4位）
+// 生成8个房间的4位随机数字密码
 function generateRoomPasswords() {
   roomPasswords = [];
   for (let i = 0; i < 8; i++) {
@@ -33,39 +32,35 @@ function scheduleDailyReset() {
   const nextMidnight = new Date(now);
   nextMidnight.setHours(24, 0, 0, 0);
   const delay = nextMidnight - now;
-
   setTimeout(() => {
     generateRoomPasswords();
     console.log('每日房间密码已自动更新');
-    // 之后每24小时执行一次
     setInterval(generateRoomPasswords, 24 * 60 * 60 * 1000);
   }, delay);
 }
 
-// 服务启动时先生成一次密码
 generateRoomPasswords();
 scheduleDailyReset();
 
-// 8个房间，每间最多2人
-const rooms = new Map();
-for(let i=1;i<=8;i++){
-  rooms.set(i, { count:0, clients:[] });
+// ========== 工具函数 ==========
+// 获取指定房间当前人数（Socket.IO原生统计，绝对准确）
+function getRoomSize(roomName) {
+  return io.sockets.adapter.rooms.get(roomName)?.size || 0;
 }
 
 // 全局广播房间状态
-function broadcastRoomStatus(){
+function broadcastRoomStatus() {
   const arr = [];
-  for(let i=1;i<=8;i++){
-    const r = rooms.get(i);
-    arr.push({num:i, full: r.count >=2});
+  for (let i = 1; i <= 8; i++) {
+    const size = getRoomSize(`room_${i}`);
+    arr.push({ num: i, full: size >= 2 });
   }
   io.emit('room_status', arr);
 }
 
 io.on('connection', (socket) => {
-  console.log('客户端连接', socket.id);
+  console.log('新客户端连接:', socket.id);
   socket.currentRoom = null;
-  // 新连接同步房间状态
   broadcastRoomStatus();
 
   // 管理员：获取当日所有房间密码
@@ -78,95 +73,101 @@ io.on('connection', (socket) => {
   });
 
   // 主动退出房间
-  socket.on('leave_room', ()=>{
+  socket.on('leave_room', () => {
     const r = socket.currentRoom;
-    if(r === null) return;
-    const room = rooms.get(r);
-    if(!room) return;
+    if (r === null) return;
+    const roomName = `room_${r}`;
 
-    // 移除当前用户（确保移除干净）
-    room.clients = room.clients.filter(c=>c!==socket.id);
-    room.count = room.clients.length;
-    // 通知房间内对方：用户已退出
-    socket.to(`room_${r}`).emit('partner_leave');
-    socket.leave(`room_${r}`);
+    socket.leave(roomName);
+    socket.to(roomName).emit('partner_leave');
     socket.currentRoom = null;
-    // 全局更新房间状态
+
+    console.log('用户退出房间', r, '当前人数:', getRoomSize(roomName));
     broadcastRoomStatus();
   });
 
-  // 进入房间（带密码校验 + 去重）
-  socket.on('join', ({ roomNum, password })=>{
-    const room = rooms.get(roomNum);
-    if(!room) return;
+  // 加入房间
+  socket.on('join', ({ roomNum, password }) => {
+    roomNum = Number(roomNum);
+    const roomName = `room_${roomNum}`;
 
-    // 校验房间密码
+    // 1. 校验房间是否存在
+    if (roomNum < 1 || roomNum > 8) {
+      socket.emit('tip', '房间不存在');
+      return;
+    }
+
+    // 2. 校验房间密码
     if (roomPasswords[roomNum - 1] !== password) {
       socket.emit('tip', '房间密码错误');
       return;
     }
 
-    // 已经在这个房间里，不重复处理
-    if (socket.currentRoom === roomNum) return;
-
-    if(room.count >=2){
-      socket.emit('tip','房间已满');
+    // 3. 已经在本房间，直接返回
+    if (socket.currentRoom === roomNum) {
+      socket.emit('wait');
       return;
     }
-    // 若之前在其他房间，先退出旧房间
-    if(socket.currentRoom !== null){
-      const old = rooms.get(socket.currentRoom);
-      if(old){
-        old.clients = old.clients.filter(c=>c!==socket.id);
-        old.count = old.clients.length;
-      }
+
+    // 4. 校验房间是否已满
+    if (getRoomSize(roomName) >= 2) {
+      socket.emit('tip', '房间已满');
+      return;
     }
+
+    // 5. 先退出旧房间
+    if (socket.currentRoom !== null) {
+      const oldRoomName = `room_${socket.currentRoom}`;
+      socket.leave(oldRoomName);
+      socket.to(oldRoomName).emit('partner_leave');
+    }
+
+    // 6. 正式加入新房间
     socket.currentRoom = roomNum;
-    socket.join(`room_${roomNum}`);
-    
-    // 核心修复：去重，避免重复添加导致人数虚高
-    if (!room.clients.includes(socket.id)) {
-      room.clients.push(socket.id);
-    }
-    room.count = room.clients.length;
-    
-    // 全局更新房间状态
+    socket.join(roomName);
+
+    const currentSize = getRoomSize(roomName);
+    console.log('用户加入房间', roomNum, '当前人数:', currentSize);
     broadcastRoomStatus();
 
-    if(room.count ===1){
+    // 7. 返回对应状态
+    if (currentSize === 1) {
       socket.emit('wait');
-    }else if(room.count ===2){
-      io.to(`room_${roomNum}`).emit('online');
+    } else if (currentSize === 2) {
+      io.to(roomName).emit('online');
     }
   });
 
-  socket.on('key_exchange', (payload)=>{
+  // 密钥交换转发
+  socket.on('key_exchange', (payload) => {
     const r = socket.currentRoom;
-    if(!r) return;
+    if (!r) return;
     socket.to(`room_${r}`).emit('key_exchange', payload);
   });
 
-  socket.on('send_cipher', (cipher)=>{
+  // 聊天消息转发
+  socket.on('send_cipher', (cipher) => {
     const r = socket.currentRoom;
-    if(!r) return;
+    if (!r) return;
     socket.to(`room_${r}`).emit('recv_cipher', cipher);
   });
 
-  // 断线处理
-  socket.on('disconnect', ()=>{
+  // 断开连接处理
+  socket.on('disconnect', () => {
+    console.log('客户端断开:', socket.id);
     const r = socket.currentRoom;
-    if(r === null) return;
-    const room = rooms.get(r);
-    if(!room) return;
-    room.clients = room.clients.filter(c=>c!==socket.id);
-    room.count = room.clients.length;
-    socket.to(`room_${r}`).emit('partner_leave');
-    // 全局更新房间状态
+    if (r === null) return;
+
+    const roomName = `room_${r}`;
+    socket.to(roomName).emit('partner_leave');
+    socket.currentRoom = null;
+
+    console.log('用户断线退出房间', r, '当前人数:', getRoomSize(roomName));
     broadcastRoomStatus();
   });
 });
 
 const PORT = 3000;
-server.listen(PORT, '0.0.0.0', ()=>{
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`服务启动成功，端口号 ${PORT}`);
 });
