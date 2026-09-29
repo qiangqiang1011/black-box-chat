@@ -12,7 +12,7 @@ const io = new Server(server, {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ========== 配置 ==========
+// ========== 密码配置 ==========
 const ADMIN_PASSWORD = 'aaaa6666';
 let roomPasswords = [];
 
@@ -37,7 +37,7 @@ function scheduleDailyReset() {
 }
 scheduleDailyReset();
 
-// ========== 房间在线人数统计（不限制进入） ==========
+// ========== 房间在线人数 ==========
 const roomOnlineCount = new Map();
 for (let i = 1; i <= 8; i++) {
   roomOnlineCount.set(i, 0);
@@ -46,10 +46,7 @@ for (let i = 1; i <= 8; i++) {
 function broadcastStatus() {
   const status = [];
   for (let i = 1; i <= 8; i++) {
-    status.push({
-      num: i,
-      online: roomOnlineCount.get(i) || 0
-    });
+    status.push({ num: i, online: roomOnlineCount.get(i) || 0 });
   }
   io.emit('room_status', status);
 }
@@ -69,7 +66,7 @@ io.on('connection', socket => {
     }
   });
 
-  // 加入房间：只校验密码，不再限制人数
+  // 加入房间
   socket.on('join', ({ roomNum, password }) => {
     roomNum = Number(roomNum);
     const roomName = `room_${roomNum}`;
@@ -86,18 +83,17 @@ io.on('connection', socket => {
 
     // 先退出旧房间
     if (socket.currentRoom) {
-      const oldRoomName = `room_${socket.currentRoom}`;
-      socket.leave(oldRoomName);
-
+      const oldName = `room_${socket.currentRoom}`;
+      socket.leave(oldName);
       const oldCount = roomOnlineCount.get(socket.currentRoom) || 0;
       roomOnlineCount.set(socket.currentRoom, Math.max(0, oldCount - 1));
-      socket.to(oldRoomName).emit('partner_leave', { id: socket.id });
+      socket.to(oldName).emit('user_leave', { id: socket.id });
+      socket.to(oldName).emit('clear_chat'); // 退出时通知旧房间所有人清空消息
     }
 
     // 加入新房间
     socket.currentRoom = roomNum;
     socket.join(roomName);
-
     const count = roomOnlineCount.get(roomNum) || 0;
     roomOnlineCount.set(roomNum, count + 1);
 
@@ -111,43 +107,33 @@ io.on('connection', socket => {
     });
 
     // 自己进入成功
-    socket.emit('wait', {
-      roomNum: roomNum,
-      count: roomOnlineCount.get(roomNum)
-    });
+    socket.emit('joined', { roomNum, count: roomOnlineCount.get(roomNum) });
   });
 
   // 主动退出
   socket.on('leave_room', () => {
     if (!socket.currentRoom) return;
-
     const roomNum = socket.currentRoom;
     const roomName = `room_${roomNum}`;
 
     socket.leave(roomName);
-
     const count = roomOnlineCount.get(roomNum) || 0;
     roomOnlineCount.set(roomNum, Math.max(0, count - 1));
-
-    socket.to(roomName).emit('partner_leave', { id: socket.id });
+    
+    // 通知房间内所有人：有人退出 + 清空消息
+    socket.to(roomName).emit('user_leave', { id: socket.id });
+    socket.to(roomName).emit('clear_chat');
+    
     socket.currentRoom = null;
 
     console.log('退出房间', roomNum, '当前在线:', roomOnlineCount.get(roomNum));
     broadcastStatus();
   });
 
-  // 密钥交换转发
-  socket.on('key_exchange', data => {
-    if (socket.currentRoom) {
-      socket.to(`room_${socket.currentRoom}`).emit('key_exchange', data);
-    }
-  });
-
-  // 聊天消息转发
-  socket.on('send_cipher', data => {
-    if (socket.currentRoom) {
-      socket.to(`room_${socket.currentRoom}`).emit('recv_cipher', data);
-    }
+  // 聊天消息转发（纯明文，服务器不存储）
+  socket.on('send_msg', text => {
+    if (!socket.currentRoom) return;
+    socket.to(`room_${socket.currentRoom}`).emit('recv_msg', { id: socket.id, text });
   });
 
   // 断开连接
@@ -157,11 +143,12 @@ io.on('connection', socket => {
 
     const roomNum = socket.currentRoom;
     const roomName = `room_${roomNum}`;
-
     const count = roomOnlineCount.get(roomNum) || 0;
     roomOnlineCount.set(roomNum, Math.max(0, count - 1));
-
-    socket.to(roomName).emit('partner_leave', { id: socket.id });
+    
+    // 通知房间内所有人：有人退出 + 清空消息
+    socket.to(roomName).emit('user_leave', { id: socket.id });
+    socket.to(roomName).emit('clear_chat');
 
     console.log('断线退出房间', roomNum, '当前在线:', roomOnlineCount.get(roomNum));
     broadcastStatus();
