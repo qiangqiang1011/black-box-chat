@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ========== 密码配置 ==========
 // 管理员总密码
-const ADMIN_PASSWORD = 'aaaa666';
+const ADMIN_PASSWORD = 'aaaa6666';
 // 存储当天8个房间的4位密码
 let roomPasswords = [];
 
@@ -84,7 +84,7 @@ io.on('connection', (socket) => {
     const room = rooms.get(r);
     if(!room) return;
 
-    // 移除当前用户
+    // 移除当前用户（确保移除干净）
     room.clients = room.clients.filter(c=>c!==socket.id);
     room.count = room.clients.length;
     // 通知房间内对方：用户已退出
@@ -95,7 +95,7 @@ io.on('connection', (socket) => {
     broadcastRoomStatus();
   });
 
-  // 进入房间（带密码校验）
+  // 进入房间（带密码校验 + 去重）
   socket.on('join', ({ roomNum, password })=>{
     const room = rooms.get(roomNum);
     if(!room) return;
@@ -105,6 +105,9 @@ io.on('connection', (socket) => {
       socket.emit('tip', '房间密码错误');
       return;
     }
+
+    // 已经在这个房间里，不重复处理
+    if (socket.currentRoom === roomNum) return;
 
     if(room.count >=2){
       socket.emit('tip','房间已满');
@@ -120,8 +123,13 @@ io.on('connection', (socket) => {
     }
     socket.currentRoom = roomNum;
     socket.join(`room_${roomNum}`);
-    room.clients.push(socket.id);
+    
+    // 核心修复：去重，避免重复添加导致人数虚高
+    if (!room.clients.includes(socket.id)) {
+      room.clients.push(socket.id);
+    }
     room.count = room.clients.length;
+    
     // 全局更新房间状态
     broadcastRoomStatus();
 
