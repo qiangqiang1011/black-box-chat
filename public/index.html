@@ -527,21 +527,31 @@
       `;
       document.body.appendChild(mask);
       const input = mask.querySelector('#roomPwdInput');
+      const confirmBtn = mask.querySelector('#confirmPwd');
       input.focus();
 
+      // 取消
       mask.querySelector('#cancelPwd').onclick = ()=> mask.remove();
-      mask.querySelector('#confirmPwd').onclick = ()=> {
+      
+      // 确认提交（防止重复点击）
+      let submitted = false;
+      function submitJoin() {
+        if (submitted) return;
         const pwd = input.value.trim();
         if (pwd.length !== 4) {
           alert('请输入4位数字密码');
           return;
         }
+        submitted = true;
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '进入中...';
         socket.emit('join', { roomNum, password: pwd });
         mask.remove();
-      };
+      }
 
+      confirmBtn.onclick = submitJoin;
       input.addEventListener('keydown', e=> {
-        if (e.key === 'Enter') mask.querySelector('#confirmPwd').click();
+        if (e.key === 'Enter') submitJoin();
       });
     }
 
