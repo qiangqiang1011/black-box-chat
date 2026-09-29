@@ -106,7 +106,6 @@
       cursor: not-allowed;
     }
 
-    /* 管理员按钮 */
     .admin-btn-wrap {
       max-width: 520px;
       margin: 20px auto 0;
@@ -271,7 +270,6 @@
     #chat::-webkit-scrollbar { width: 4px; }
     #chat::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 
-    /* 密码弹窗 */
     .pwd-modal-mask {
       position: fixed; inset: 0;
       background: rgba(0,0,0,0.6);
@@ -346,7 +344,6 @@
     <div class="panel-subtitle">PRIVATE SPACE · 8 ROOMS · E2EE</div>
     <div id="list"></div>
 
-    <!-- 管理员入口 -->
     <div class="admin-btn-wrap">
       <button class="admin-btn" id="adminBtn">管理员查看今日房间密码</button>
     </div>
@@ -394,7 +391,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io({ transports: ['websocket', 'polling'] });
+    const socket = io({ transports: ['polling', 'websocket'] });
 
     const roomPanel = document.getElementById('roomPanel');
     const listWrap = document.getElementById('list');
@@ -410,8 +407,10 @@
     let inRoom = false;
     let sharedKey = null;
     let myPublicKey = null;
+    let currentModal = null;
+    let joinLocked = false;
 
-    // ========== 纯JS加密，HTTP环境全平台通用 ==========
+    // ========== 加密逻辑 ==========
     function genKeyPair() {
       const ec = new elliptic.ec('p256');
       const keyPair = ec.genKeyPair();
@@ -446,12 +445,11 @@
           padding: CryptoJS.pad.Pkcs7
         });
         return plain.toString(CryptoJS.enc.Utf8);
-      }catch(e){
+      } catch(e) {
         return "[解密失败]";
       }
     }
 
-    // 本地销毁记录与密钥
     function destroyLocalData() {
       sharedKey = null;
       myPublicKey = null;
@@ -459,7 +457,7 @@
       txt.value = '';
     }
 
-    // 渲染房间列表
+    // ========== 房间列表 ==========
     function renderDefault() {
       listWrap.innerHTML = '';
       for (let i = 1; i <= 8; i++) {
@@ -511,14 +509,17 @@
     }
     renderDefault();
 
-    // 弹出房间密码输入框
+    // ========== 密码弹窗 ==========
     function openRoomPwdInput(roomNum) {
+      if (joinLocked) return;
+      if (currentModal) currentModal.remove();
+
       const mask = document.createElement('div');
       mask.className = 'pwd-modal-mask';
       mask.innerHTML = `
         <div class="pwd-modal">
           <h3>请输入房间${roomNum}密码</h3>
-          <input type="text" id="roomPwdInput" maxlength="4" placeholder="4位数字密码" />
+          <input type="text" id="roomPwdInput" maxlength="4" placeholder="4位数字密码" inputmode="numeric" />
           <div class="pwd-modal-btns">
             <button class="pwd-modal-btn btn-cancel" id="cancelPwd">取消</button>
             <button class="pwd-modal-btn btn-primary" id="confirmPwd">确认进入</button>
@@ -526,37 +527,48 @@
         </div>
       `;
       document.body.appendChild(mask);
+      currentModal = mask;
+
       const input = mask.querySelector('#roomPwdInput');
       const confirmBtn = mask.querySelector('#confirmPwd');
       input.focus();
 
-      // 取消
-      mask.querySelector('#cancelPwd').onclick = ()=> mask.remove();
+      mask.querySelector('#cancelPwd').onclick = ()=> {
+        mask.remove();
+        currentModal = null;
+      };
       
-      // 确认提交（防止重复点击）
-      let submitted = false;
       function submitJoin() {
-        if (submitted) return;
+        if (joinLocked) return;
         const pwd = input.value.trim();
-        if (pwd.length !== 4) {
+        if (pwd.length !== 4 || !/^\d{4}$/.test(pwd)) {
           alert('请输入4位数字密码');
           return;
         }
-        submitted = true;
+        joinLocked = true;
         confirmBtn.disabled = true;
         confirmBtn.textContent = '进入中...';
-        socket.emit('join', { roomNum, password: pwd });
-        mask.remove();
+        socket.emit('join', { roomNum: roomNum, password: pwd });
+        setTimeout(()=> {
+          mask.remove();
+          currentModal = null;
+          joinLocked = false;
+        }, 500);
       }
 
       confirmBtn.onclick = submitJoin;
       input.addEventListener('keydown', e=> {
-        if (e.key === 'Enter') submitJoin();
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          submitJoin();
+        }
       });
     }
 
-    // 管理员密码弹窗
+    // ========== 管理员入口 ==========
     adminBtn.onclick = () => {
+      if (currentModal) currentModal.remove();
+
       const mask = document.createElement('div');
       mask.className = 'pwd-modal-mask';
       mask.innerHTML = `
@@ -570,15 +582,20 @@
         </div>
       `;
       document.body.appendChild(mask);
+      currentModal = mask;
       const input = mask.querySelector('#adminPwdInput');
       input.focus();
 
-      mask.querySelector('#cancelAdmin').onclick = ()=> mask.remove();
+      mask.querySelector('#cancelAdmin').onclick = ()=> {
+        mask.remove();
+        currentModal = null;
+      };
       mask.querySelector('#confirmAdmin').onclick = ()=> {
         const pwd = input.value.trim();
         if (!pwd) return;
         socket.emit('admin_get_passwords', pwd);
         mask.remove();
+        currentModal = null;
       };
 
       input.addEventListener('keydown', e=> {
@@ -586,7 +603,6 @@
       });
     };
 
-    // 接收管理员密码查询结果
     socket.on('admin_passwords_result', (res) => {
       if (!res.success) return;
       let html = '<ul class="pwd-list">';
@@ -607,10 +623,14 @@
         </div>
       `;
       document.body.appendChild(mask);
-      mask.querySelector('#closePwdList').onclick = ()=> mask.remove();
+      currentModal = mask;
+      mask.querySelector('#closePwdList').onclick = ()=> {
+        mask.remove();
+        currentModal = null;
+      };
     });
 
-    // 更新房间状态
+    // ========== 房间状态更新 ==========
     socket.on('room_status', arr => {
       arr.forEach(v => {
         const dom = document.getElementById('r'+v.num);
@@ -619,13 +639,13 @@
         const btn = dom.querySelector('button');
         const statText = dom.querySelector('.room-status');
         const dot = statText.querySelector('.status-dot');
-        if(v.full){
+        if(v.full) {
           statText.childNodes[1].textContent = "已满";
           dot.classList.add("full");
           btn.textContent = "已满";
           btn.disabled = true;
           btn.onclick = null;
-        }else{
+        } else {
           statText.childNodes[1].textContent = "空闲";
           dot.classList.remove("full");
           btn.textContent = "进入";
@@ -635,7 +655,7 @@
       });
     });
 
-    // 点击返回：销毁本地记录，退出房间回到列表
+    // ========== 交互逻辑 ==========
     backBtn.addEventListener('click', () => {
       socket.emit('leave_room');
       destroyLocalData();
@@ -649,14 +669,12 @@
       navDot.classList.remove('online');
     });
 
-    // 切后台自动销毁
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && inRoom) {
         destroyLocalData();
       }
     });
 
-    // 第一个进入房间
     socket.on('wait', () => {
       inRoom = true;
       roomPanel.style.display = 'none';
@@ -684,9 +702,8 @@
       socket.emit('key_exchange', { pub: kp.pubRaw });
     });
 
-    // 双方连接成功
     socket.on('online', () => {
-      if(!myPublicKey){
+      if(!myPublicKey) {
         const kp = genKeyPair();
         myPublicKey = kp;
       }
@@ -716,13 +733,11 @@
       txt.focus();
     });
 
-    // 收到对方公钥
     socket.on('key_exchange', (payload) => {
       if(!myPublicKey) return;
       sharedKey = deriveSharedKey(myPublicKey.keyPair, payload.pub);
     });
 
-    // 对方退出：仅销毁本地记录，不退出房间
     socket.on('partner_leave', () => {
       destroyLocalData();
       navStatusText.textContent = '对方已退出';
@@ -743,14 +758,12 @@
       sendBtn.disabled = true;
     });
 
-    // 收到消息
     socket.on('recv_cipher', (cipher) => {
       if (!inRoom || !sharedKey) return;
       const plain = decryptMsg(cipher, sharedKey);
       addMsg(plain, false);
     });
 
-    // 发送消息
     sendBtn.addEventListener('click', () => {
       const val = txt.value.trim();
       if (!val || !inRoom || !sharedKey) return;
@@ -761,7 +774,6 @@
       chat.scrollTop = chat.scrollHeight;
     });
 
-    // 回车发送
     txt.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -769,7 +781,6 @@
       }
     });
 
-    // 添加消息气泡
     function addMsg(text, isMe) {
       const row = document.createElement('div');
       row.className = 'row ' + (isMe ? 'r' : 'l');
@@ -783,7 +794,6 @@
 
     socket.on('tip', msg => alert(msg));
 
-    // 关闭页面销毁
     window.addEventListener('beforeunload', () => {
       destroyLocalData();
     });
