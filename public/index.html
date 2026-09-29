@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>私密空间</title>
-  <!-- 纯JS加密库，HTTP环境全平台兼容 -->
   <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
   <style>
@@ -391,7 +390,8 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io({ transports: ['polling', 'websocket'] });
+    // 强制websocket，杜绝连接升级导致的人数虚高
+    const socket = io({ transports: ['websocket'] });
 
     const roomPanel = document.getElementById('roomPanel');
     const listWrap = document.getElementById('list');
