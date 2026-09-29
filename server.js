@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
-  transports: ['websocket'] // 强制websocket，杜绝连接升级导致的人数虚高
+  transports: ['websocket'] // 强制纯websocket，杜绝连接升级
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -40,22 +40,33 @@ function scheduleDailyReset() {
 generateRoomPasswords();
 scheduleDailyReset();
 
-// ========== 房间管理（Set天然去重） ==========
+// ========== 房间管理（按客户端ID去重，彻底解决人数虚高） ==========
+// 每个房间是一个Map：key=客户端ID，value=该客户端的连接数
 const rooms = new Map();
 for(let i = 1; i <= 8; i++){
-  rooms.set(i, new Set());
+  rooms.set(i, new Map());
 }
 
 function broadcastRoomStatus() {
   const arr = [];
   for(let i = 1; i <= 8; i++) {
+    // 人数 = Map的size（不同客户端的数量）
     arr.push({ num: i, full: rooms.get(i).size >= 2 });
   }
   io.emit('room_status', arr);
 }
 
 io.on('connection', (socket) => {
-  console.log('新客户端连接:', socket.id);
+  // 从连接参数获取固定客户端ID（同一个浏览器永远同一个ID）
+  const clientId = socket.handshake.query.clientId;
+  console.log('新客户端连接:', clientId, socket.id);
+  
+  if (!clientId) {
+    socket.disconnect();
+    return;
+  }
+
+  socket.clientId = clientId;
   socket.currentRoom = null;
   broadcastRoomStatus();
 
@@ -75,14 +86,20 @@ io.on('connection', (socket) => {
     const room = rooms.get(r);
     const roomName = `room_${r}`;
 
-    room.delete(socket.id);
-    socket.leave(roomName);
-    
-    // 房间还有人，才发退出通知
-    if (room.size > 0) {
-      socket.to(roomName).emit('partner_leave');
+    // 该客户端连接数减1
+    const count = (room.get(clientId) || 1) - 1;
+    if (count <= 0) {
+      // 连接数归零，真正移除用户
+      room.delete(clientId);
+      socket.leave(roomName);
+      // 房间还有人，才发退出通知
+      if (room.size > 0) {
+        socket.to(roomName).emit('partner_leave');
+      }
+    } else {
+      room.set(clientId, count);
     }
-    
+
     socket.currentRoom = null;
     console.log('用户退出房间', r, '当前人数:', room.size);
     broadcastRoomStatus();
@@ -111,21 +128,27 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // 房间已满
-    if (room.size >= 2) {
+    // 房间已满（按不同客户端数判断）
+    if (room.size >= 2 && !room.has(clientId)) {
       socket.emit('tip', '房间已满');
       return;
     }
 
     // 先退出旧房间
     if (socket.currentRoom !== null) {
-      const oldRoom = rooms.get(socket.currentRoom);
-      const oldRoomName = `room_${socket.currentRoom}`;
+      const oldNum = socket.currentRoom;
+      const oldRoom = rooms.get(oldNum);
+      const oldRoomName = `room_${oldNum}`;
       if (oldRoom) {
-        oldRoom.delete(socket.id);
-        socket.leave(oldRoomName);
-        if (oldRoom.size > 0) {
-          socket.to(oldRoomName).emit('partner_leave');
+        const oldCount = (oldRoom.get(clientId) || 1) - 1;
+        if (oldCount <= 0) {
+          oldRoom.delete(clientId);
+          socket.leave(oldRoomName);
+          if (oldRoom.size > 0) {
+            socket.to(oldRoomName).emit('partner_leave');
+          }
+        } else {
+          oldRoom.set(clientId, oldCount);
         }
       }
     }
@@ -133,9 +156,10 @@ io.on('connection', (socket) => {
     // 加入新房间
     socket.currentRoom = roomNum;
     socket.join(roomName);
-    room.add(socket.id);
+    // 连接数+1（同一个客户端重连只增加计数，人数不变）
+    room.set(clientId, (room.get(clientId) || 0) + 1);
 
-    console.log('用户加入房间', roomNum, '当前人数:', room.size);
+    console.log('用户加入房间', roomNum, '当前人数:', room.size, '连接数:', room.get(clientId));
     broadcastRoomStatus();
 
     if (room.size === 1) {
@@ -159,17 +183,23 @@ io.on('connection', (socket) => {
 
   // 断开连接
   socket.on('disconnect', () => {
-    console.log('客户端断开:', socket.id);
+    console.log('客户端断开:', clientId, socket.id);
     const r = socket.currentRoom;
     if (!r) return;
 
     const room = rooms.get(r);
     const roomName = `room_${r}`;
-    room.delete(socket.id);
-
-    // 房间还有人，才发退出通知
-    if (room.size > 0) {
-      socket.to(roomName).emit('partner_leave');
+    
+    // 连接数减1
+    const count = (room.get(clientId) || 1) - 1;
+    if (count <= 0) {
+      // 连接数归零，真正移除用户
+      room.delete(clientId);
+      if (room.size > 0) {
+        socket.to(roomName).emit('partner_leave');
+      }
+    } else {
+      room.set(clientId, count);
     }
 
     console.log('用户断线退出房间', r, '当前人数:', room.size);
