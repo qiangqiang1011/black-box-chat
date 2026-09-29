@@ -390,8 +390,18 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    // 强制websocket，杜绝连接升级导致的人数虚高
-    const socket = io({ transports: ['websocket'] });
+    // 生成固定客户端ID（同一个标签页永远不变，关闭即销毁）
+    let clientId = sessionStorage.getItem('chat_client_id');
+    if (!clientId) {
+      clientId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+      sessionStorage.setItem('chat_client_id', clientId);
+    }
+
+    // 连接时带上固定客户端ID
+    const socket = io({ 
+      transports: ['websocket'],
+      query: { clientId: clientId }
+    });
 
     const roomPanel = document.getElementById('roomPanel');
     const listWrap = document.getElementById('list');
@@ -549,11 +559,6 @@
         confirmBtn.disabled = true;
         confirmBtn.textContent = '进入中...';
         socket.emit('join', { roomNum: roomNum, password: pwd });
-        setTimeout(()=> {
-          mask.remove();
-          currentModal = null;
-          joinLocked = false;
-        }, 500);
       }
 
       confirmBtn.onclick = submitJoin;
@@ -675,7 +680,14 @@
       }
     });
 
+    // 进入房间成功（释放提交锁）
     socket.on('wait', () => {
+      joinLocked = false;
+      if (currentModal) {
+        currentModal.remove();
+        currentModal = null;
+      }
+
       inRoom = true;
       roomPanel.style.display = 'none';
       navRoom.textContent = '房间 ' + socket.currentRoom;
@@ -702,7 +714,14 @@
       socket.emit('key_exchange', { pub: kp.pubRaw });
     });
 
+    // 双方连接成功（释放提交锁）
     socket.on('online', () => {
+      joinLocked = false;
+      if (currentModal) {
+        currentModal.remove();
+        currentModal = null;
+      }
+
       if(!myPublicKey) {
         const kp = genKeyPair();
         myPublicKey = kp;
@@ -731,6 +750,12 @@
       txt.placeholder = '输入消息...';
       sendBtn.disabled = false;
       txt.focus();
+    });
+
+    // 错误提示（释放提交锁）
+    socket.on('tip', msg => {
+      joinLocked = false;
+      alert(msg);
     });
 
     socket.on('key_exchange', (payload) => {
@@ -791,8 +816,6 @@
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
     }
-
-    socket.on('tip', msg => alert(msg));
 
     window.addEventListener('beforeunload', () => {
       destroyLocalData();
