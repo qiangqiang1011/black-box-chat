@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>私密空间</title>
-  <!-- 纯JS加密库，HTTP环境全平台兼容 -->
   <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
   <style>
@@ -121,7 +120,6 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    // 强制websocket连接，杜绝长轮询升级导致的重复连接
     const socket = io({ transports: ['websocket'] });
 
     const roomPanel = document.getElementById('roomPanel');
@@ -141,7 +139,7 @@
     let modal = null;
     let joinLock = false;
 
-    // ========== 端到端加密逻辑 ==========
+    // 加密逻辑
     function genKeyPair() {
       const ec = new elliptic.ec('p256');
       const keyPair = ec.genKeyPair();
@@ -177,7 +175,6 @@
       }
     }
 
-    // 本地销毁所有数据
     function clearLocalData() {
       sharedKey = null;
       myPublicKey = null;
@@ -185,7 +182,7 @@
       txt.value = '';
     }
 
-    // ========== 渲染房间列表 ==========
+    // 渲染房间列表
     function renderRoomList() {
       listWrap.innerHTML = '';
       for (let i = 1; i <= 8; i++) {
@@ -210,7 +207,7 @@
     }
     renderRoomList();
 
-    // ========== 房间密码弹窗 ==========
+    // 房间密码弹窗
     function openRoomPwdModal(roomNum) {
       if (joinLock) return;
       if (modal) modal.remove();
@@ -260,7 +257,7 @@
       });
     }
 
-    // ========== 管理员入口 ==========
+    // 管理员入口
     adminBtn.onclick = () => {
       if (modal) modal.remove();
 
@@ -298,7 +295,7 @@
       });
     };
 
-    // 管理员密码查询结果
+    // 管理员密码结果
     socket.on('admin_result', list => {
       let html = '<ul class="pwd-list">';
       list.forEach((pwd, idx) => {
@@ -325,7 +322,7 @@
       };
     });
 
-    // ========== 房间状态更新 ==========
+    // 房间状态更新
     socket.on('room_status', arr => {
       arr.forEach(v => {
         const dom = document.getElementById('r' + v.num);
@@ -350,7 +347,6 @@
       });
     });
 
-    // ========== 交互逻辑 ==========
     // 返回按钮
     backBtn.addEventListener('click', () => {
       socket.emit('leave_room');
@@ -365,20 +361,17 @@
       navDot.classList.remove('online');
     });
 
-    // 切后台自动销毁记录
+    // 切后台清记录
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && inRoom) {
         clearLocalData();
       }
     });
 
-    // 进入房间成功（等待对方）
+    // 等待对方
     socket.on('wait', () => {
       joinLock = false;
-      if (modal) {
-        modal.remove();
-        modal = null;
-      }
+      if (modal) { modal.remove(); modal = null; }
 
       inRoom = true;
       roomPanel.style.display = 'none';
@@ -401,17 +394,12 @@
       socket.emit('key_exchange', { pub: kp.pubRaw });
     });
 
-    // 双方连接成功
+    // 连接成功
     socket.on('online', () => {
       joinLock = false;
-      if (modal) {
-        modal.remove();
-        modal = null;
-      }
+      if (modal) { modal.remove(); modal = null; }
 
-      if (!myPublicKey) {
-        myPublicKey = genKeyPair();
-      }
+      if (!myPublicKey) myPublicKey = genKeyPair();
       socket.emit('key_exchange', { pub: myPublicKey.pubRaw });
 
       inRoom = true;
@@ -438,7 +426,7 @@
       sharedKey = deriveSharedKey(myPublicKey.keyPair, payload.pub);
     });
 
-    // 对方退出通知
+    // 对方退出
     socket.on('partner_leave', () => {
       clearLocalData();
       navStatusText.textContent = '对方已退出';
@@ -478,7 +466,6 @@
       }
     });
 
-    // 添加消息气泡
     function addMsg(text, isMe) {
       const row = document.createElement('div');
       row.className = 'row ' + (isMe ? 'r' : 'l');
@@ -490,13 +477,12 @@
       chat.scrollTop = chat.scrollHeight;
     }
 
-    // 通用提示
+    // 提示
     socket.on('tip', msg => {
       joinLock = false;
       alert(msg);
     });
 
-    // 关闭页面销毁数据
     window.addEventListener('beforeunload', clearLocalData);
   </script>
 </body>
